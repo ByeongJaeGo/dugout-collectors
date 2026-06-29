@@ -1,0 +1,14 @@
+# OS / editor
+.DS_Store
+Thumbs.db
+*.swp
+.vscode/
+.idea/
+
+# Local tools
+.playwright-mcp/
+node_modules/
+
+# Secrets (use js/config.js placeholders in repo)
+.env
+.env.*

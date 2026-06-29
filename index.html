@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dugout Collectors — 야구 희귀 용품 공유</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div id="config-banner" class="config-banner" hidden>
+    <strong>설정 필요:</strong>
+    <code>js/config.js</code>에 Supabase URL과 Anon Key를 입력하면 클라우드 DB로 전환됩니다.
+  </div>
+  <div id="demo-banner" class="config-banner demo-banner">
+    <strong>데모 모드</strong> — Supabase 없이 바로 사용 중입니다. 데이터는 이 브라우저에 저장됩니다.
+  </div>
+
+  <header class="header">
+    <div class="header__inner">
+      <a href="#" class="logo" data-nav="feed">⚾ Dugout</a>
+
+      <nav id="guest-nav" class="nav">
+        <button type="button" class="nav-btn" data-nav="upload">올리기</button>
+        <button type="button" class="nav-btn" data-nav="login">로그인</button>
+        <button type="button" class="nav-btn nav-btn--accent" data-nav="signup">가입</button>
+      </nav>
+
+      <nav id="auth-nav" class="nav" hidden>
+        <span id="nav-user-label" class="nav-nickname"></span>
+        <button type="button" class="nav-btn" data-nav="upload">올리기</button>
+        <button type="button" class="nav-btn nav-btn--likes" data-nav="my-likes" id="nav-likes-btn" aria-label="좋아요한 유니폼">
+          ♥ <span id="nav-likes-count">0</span>
+        </button>
+        <button type="button" class="nav-btn" data-nav="my-posts">마이</button>
+        <button type="button" id="logout-btn" class="nav-btn">로그아웃</button>
+      </nav>
+    </div>
+  </header>
+
+  <main class="main">
+    <!-- 로그인 -->
+    <section id="view-login" hidden>
+      <h1 class="view-title">로그인</h1>
+      <form id="login-form" class="form-card">
+        <div class="form-group">
+          <label for="login-userid">이메일</label>
+          <div class="input-row">
+            <input type="text" id="login-userid" name="userid" required autocomplete="username" placeholder="example">
+            <span class="input-at">@</span>
+            <select id="login-provider" name="provider" class="input-provider" aria-label="메일 종류">
+              <option value="gmail.com">gmail.com</option>
+              <option value="naver.com" selected>naver.com</option>
+              <option value="daum.net">daum.net</option>
+              <option value="kakao.com">kakao.com</option>
+            </select>
+          </div>
+        </div>
+        <button type="submit" class="btn btn--primary">로그인</button>
+        <p class="form-footer">계정이 없으신가요? <a href="#" id="go-signup">회원가입</a> · <a href="#" data-nav="feed">갤러리로</a></p>
+      </form>
+    </section>
+
+    <!-- 회원가입 -->
+    <section id="view-signup" hidden>
+      <h1 class="view-title">회원가입</h1>
+      <form id="signup-form" class="form-card">
+        <div class="form-group">
+          <label for="signup-userid">이메일</label>
+          <div class="input-row">
+            <input type="text" id="signup-userid" name="userid" required minlength="2" maxlength="30" autocomplete="username" placeholder="example">
+            <span class="input-at">@</span>
+            <select id="signup-provider" name="provider" class="input-provider" aria-label="메일 종류">
+              <option value="gmail.com">gmail.com</option>
+              <option value="naver.com" selected>naver.com</option>
+              <option value="daum.net">daum.net</option>
+              <option value="kakao.com">kakao.com</option>
+            </select>
+          </div>
+          <p class="form-hint">앞부분만 입력하세요. @ 뒤는 Gmail·네이버 등에서 선택합니다.</p>
+        </div>
+        <div class="form-group">
+          <label for="signup-nickname">닉네임</label>
+          <input type="text" id="signup-nickname" name="nickname" required minlength="2" maxlength="20" placeholder="2~20자">
+          <p class="form-hint">피드에 표시되는 이름입니다.</p>
+        </div>
+        <button type="submit" class="btn btn--primary">가입하기</button>
+        <p class="form-footer">이미 계정이 있으신가요? <a href="#" id="go-login">로그인</a> · <a href="#" data-nav="feed">갤러리로</a></p>
+      </form>
+    </section>
+
+    <!-- 피드 (기본 화면) -->
+    <section id="view-feed">
+      <div class="feed-header">
+        <h1 class="view-title">유니폼 갤러리</h1>
+        <p class="feed-subtitle">수집가들의 희귀 유니폼 · 최신순</p>
+      </div>
+      <form id="search-form" class="search-bar" role="search">
+        <input type="search" id="search-input" name="q" placeholder="팀, 선수, 설명으로 검색…" autocomplete="off">
+        <button type="submit" class="search-bar__btn" aria-label="검색">🔍</button>
+      </form>
+      <div id="guest-cta" class="guest-cta">
+        <div class="guest-cta__card">
+          <span class="guest-cta__badge">10초면 끝!</span>
+          <p class="guest-cta__title">회원가입하고<br>좋아요 · 업로드 해보세요</p>
+          <button type="button" id="guest-signup-btn" class="btn btn--primary guest-cta__btn">회원가입</button>
+        </div>
+      </div>
+      <div id="feed-list" class="feed-list"></div>
+    </section>
+
+    <!-- 업로드 -->
+    <section id="view-upload" hidden>
+      <h1 class="view-title">사진 올리기</h1>
+      <p id="upload-guest-notice" class="upload-notice" hidden>
+        사진 업로드는 회원가입 후 가능합니다. 10초면 끝!
+        <button type="button" id="upload-go-signup" class="guest-banner__link">회원가입하기</button>
+      </p>
+      <form id="upload-form" class="form-card">
+        <div class="form-group">
+          <label>사진</label>
+          <div class="photo-upload">
+            <input type="file" id="photo-input" name="photo" accept="image/jpeg,image/png,image/webp,image/gif" required>
+            <p id="photo-placeholder" class="photo-placeholder">탭하여 사진 선택<br><small>JPG, PNG, WEBP, GIF · 최대 5MB</small></p>
+            <img id="photo-preview" class="photo-preview" alt="미리보기" hidden>
+          </div>
+        </div>
+        <div class="form-group">
+          <label for="caption-input">설명</label>
+          <textarea id="caption-input" name="caption" required maxlength="300" placeholder="팀, 연도, 에디션 등 간단히 적어 주세요."></textarea>
+        </div>
+        <button type="submit" class="btn btn--primary">올리기</button>
+      </form>
+    </section>
+
+    <!-- 마이 · 올린 글 -->
+    <section id="view-my-posts" hidden>
+      <h1 class="view-title">마이 · 올린 글</h1>
+      <div id="my-posts-list" class="feed-list"></div>
+    </section>
+
+    <!-- 좋아요한 글 -->
+    <section id="view-my-likes" hidden>
+      <h1 class="view-title">좋아요한 유니폼</h1>
+      <p class="feed-subtitle">내가 ♥ 누른 글 모음</p>
+      <div id="my-likes-list" class="feed-list"></div>
+    </section>
+  </main>
+
+  <div id="signup-modal" class="signup-modal" hidden aria-modal="true" role="dialog">
+    <div class="signup-modal__backdrop" id="signup-modal-backdrop"></div>
+    <div class="signup-modal__card">
+      <div class="signup-modal__ring" aria-hidden="true"></div>
+      <p class="signup-modal__badge">10초면 끝!</p>
+      <h2 class="signup-modal__title">회원가입하고 시작하세요</h2>
+      <p class="signup-modal__text">좋아요, 유니폼 업로드 — 가입 후 바로 이용할 수 있어요.</p>
+      <button type="button" id="signup-modal-go" class="btn btn--primary signup-modal__btn">회원가입하기</button>
+      <button type="button" id="signup-modal-close" class="signup-modal__skip">나중에</button>
+    </div>
+  </div>
+
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="js/config.js"></script>
+  <script src="js/email-utils.js"></script>
+  <script src="js/comments.js"></script>
+  <script src="js/local-store.js"></script>
+  <script src="js/ui.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/posts.js"></script>
+  <script src="js/backend.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>

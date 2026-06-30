@@ -38,12 +38,14 @@ function initCookieConsent() {
   const banner = document.getElementById('cookie-consent');
   if (!banner) {
     loadAdsenseScript();
+    loadClarity();
     return;
   }
 
   if (hasCookieConsent()) {
     banner.hidden = true;
     loadAdsenseScript();
+    loadClarity();
     return;
   }
 
@@ -52,6 +54,7 @@ function initCookieConsent() {
     localStorage.setItem('dugout_cookie_consent', 'accepted');
     banner.hidden = true;
     loadAdsenseScript();
+    loadClarity();
   });
 }
 

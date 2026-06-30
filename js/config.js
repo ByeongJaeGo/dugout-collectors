@@ -24,3 +24,11 @@ const CONTACT_EMAIL = 'gobyjea@gmail.com';
 const ADSENSE_CLIENT_ID = 'ca-pub-5264814436773700';
 const ADSENSE_VERIFICATION = 'ca-pub-5264814436773700';
 const SITE_URL = 'https://workspace-chi-one-16.vercel.app';
+
+/**
+ * Microsoft Clarity — 행동 분석 (히트맵·세션 녹화)
+ * 1) https://clarity.microsoft.com 가입
+ * 2) 새 프로젝트 → 사이트 URL 입력
+ * 3) 설정 → Setup → Project ID 복사 → 아래에 붙여넣기
+ */
+const CLARITY_PROJECT_ID = '';

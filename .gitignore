@@ -16,3 +16,4 @@ KakaoTalk_*.jpg
 # Secrets (use js/config.js placeholders in repo)
 .env
 .env.*
+.vercel

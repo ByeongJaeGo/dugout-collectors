@@ -1,4 +1,4 @@
-const views = ['login', 'signup', 'feed', 'upload', 'my-posts', 'my-likes'];
+const views = ['feed', 'upload', 'my-posts', 'my-likes'];
 
 function showView(name) {
   views.forEach((v) => {
@@ -10,7 +10,7 @@ function showView(name) {
   });
 }
 
-function setAuthNav(isLoggedIn, label) {
+function setAuthNav(isLoggedIn, label, badges) {
   const authNav = document.getElementById('auth-nav');
   const guestNav = document.getElementById('guest-nav');
   const labelEl = document.getElementById('nav-user-label');
@@ -18,8 +18,17 @@ function setAuthNav(isLoggedIn, label) {
 
   if (authNav) authNav.hidden = !isLoggedIn;
   if (guestNav) guestNav.hidden = isLoggedIn;
-  if (labelEl) labelEl.textContent = isLoggedIn && label ? `${label}님` : '';
+  document.querySelector('.header')?.classList.toggle('header--auth', isLoggedIn);
+  if (labelEl) {
+    if (isLoggedIn && label) {
+      const badgeHtml = renderBadgesHtml(badges, 'nav');
+      labelEl.innerHTML = `${escapeHtml(label)}님${badgeHtml ? ` ${badgeHtml}` : ''}`;
+    } else {
+      labelEl.textContent = '';
+    }
+  }
   if (guestCta) guestCta.hidden = isLoggedIn;
+  if (isLoggedIn) hideAuthModal();
 }
 
 function updateLikesBannerCount(count) {
@@ -27,49 +36,240 @@ function updateLikesBannerCount(count) {
   if (countEl) countEl.textContent = count;
 }
 
+let lastUnreadNotificationCount = -1;
+
+function triggerNotificationBellAnimation() {
+  const btn = document.getElementById('notification-btn');
+  const badge = document.getElementById('notification-count');
+  if (!btn) return;
+
+  btn.classList.remove('nav-btn--notify--ring');
+  void btn.offsetWidth;
+  btn.classList.add('nav-btn--notify--ring');
+
+  if (badge) {
+    badge.classList.remove('notification-badge--pop');
+    void badge.offsetWidth;
+    badge.classList.add('notification-badge--pop');
+  }
+
+  window.setTimeout(() => {
+    btn.classList.remove('nav-btn--notify--ring');
+    badge?.classList.remove('notification-badge--pop');
+  }, 900);
+}
+
+function updateNotificationBadge(count, options = {}) {
+  const badge = document.getElementById('notification-count');
+  const btn = document.getElementById('notification-btn');
+  if (!badge || !btn) return;
+
+  const label = count > 0 ? `알림 ${count > 99 ? '99+' : count}개` : '알림';
+  btn.setAttribute('aria-label', label);
+
+  const shouldAnimate =
+    options.animate !== false &&
+    lastUnreadNotificationCount >= 0 &&
+    count > lastUnreadNotificationCount;
+
+  if (count > 0) {
+    badge.hidden = false;
+    badge.textContent = count > 99 ? '99+' : String(count);
+  } else {
+    badge.hidden = true;
+    badge.textContent = '0';
+  }
+
+  if (shouldAnimate) triggerNotificationBellAnimation();
+  lastUnreadNotificationCount = count;
+}
+
+function resetNotificationBadgeState() {
+  lastUnreadNotificationCount = -1;
+}
+
+function renderNotificationList(notifications, onItemClick) {
+  const list = document.getElementById('notification-list');
+  if (!list) return;
+
+  if (!notifications.length) {
+    list.innerHTML = '<li class="notification-empty">새 알림이 없습니다.</li>';
+    return;
+  }
+
+  list.innerHTML = notifications
+    .map((n) => {
+      const msg = escapeHtml(formatNotificationMessage(n));
+      const caption = escapeHtml((n.post_caption || '').slice(0, 30));
+      const time = formatNotificationTime(n.created_at);
+      const unread = n.read ? '' : ' notification-item--unread';
+      return `
+        <li>
+          <button type="button" class="notification-item${unread}" data-post-id="${escapeHtml(n.post_id)}">
+            <span class="notification-item__msg">${msg}</span>
+            <span class="notification-item__post">${caption}${(n.post_caption || '').length > 30 ? '…' : ''}</span>
+            <time class="notification-item__time">${time}</time>
+          </button>
+        </li>
+      `;
+    })
+    .join('');
+
+  list.querySelectorAll('.notification-item').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      if (onItemClick) onItemClick(btn.dataset.postId);
+    });
+  });
+}
+
+function setNotificationPanelOpen(open) {
+  const panel = document.getElementById('notification-panel');
+  const btn = document.getElementById('notification-btn');
+  if (panel) panel.hidden = !open;
+  if (btn) btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+}
+
+function initNotificationPanel({ onToggle, onMarkRead, onItemClick }) {
+  document.getElementById('notification-btn')?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const panel = document.getElementById('notification-panel');
+    const isOpen = panel && !panel.hidden;
+    setNotificationPanelOpen(!isOpen);
+    if (!isOpen && onToggle) onToggle();
+  });
+
+  document.getElementById('notification-mark-read')?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    if (onMarkRead) onMarkRead();
+  });
+
+  document.addEventListener('click', (e) => {
+    const wrap = document.querySelector('.nav-notify');
+    if (wrap && !wrap.contains(e.target)) {
+      setNotificationPanelOpen(false);
+    }
+  });
+}
+
+function scrollToPost(postId) {
+  const el = document.querySelector(`.post-card[data-post-id="${postId}"]`);
+  if (el) {
+    showView('feed');
+    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    el.classList.add('post-card--highlight');
+    setTimeout(() => el.classList.remove('post-card--highlight'), 1500);
+  }
+}
+
 function filterPostsByQuery(posts, query) {
   const q = query.trim().toLowerCase();
   if (!q) return posts;
-  return posts.filter(
-    (p) =>
+  return posts.filter((p) => {
+    const tagText = (p.tags || []).join(' ').toLowerCase();
+    return (
       (p.caption || '').toLowerCase().includes(q) ||
+      (p.player_name || '').toLowerCase().includes(q) ||
+      tagText.includes(q) ||
       (p.profiles?.nickname || '').toLowerCase().includes(q)
-  );
+    );
+  });
 }
 
-let signupModalCallback = null;
+function renderPostTagsHtml(tags) {
+  if (!tags?.length) return '';
+  return `<div class="post-card__tags">${tags
+    .map((tag) => `<span class="post-tag">#${escapeHtml(tag)}</span>`)
+    .join('')}</div>`;
+}
 
-function showSignupModal(onConfirm) {
-  const modal = document.getElementById('signup-modal');
-  if (!modal) {
-    if (onConfirm) onConfirm();
-    return;
+function setAuthModalTab(mode) {
+  const isLogin = mode === 'login';
+  const loginTab = document.getElementById('auth-tab-login');
+  const signupTab = document.getElementById('auth-tab-signup');
+  const loginPanel = document.getElementById('auth-panel-login');
+  const signupPanel = document.getElementById('auth-panel-signup');
+
+  if (loginTab) {
+    loginTab.classList.toggle('auth-modal__tab--active', isLogin);
+    loginTab.setAttribute('aria-selected', isLogin ? 'true' : 'false');
   }
-  signupModalCallback = onConfirm;
-  modal.hidden = false;
-  requestAnimationFrame(() => modal.classList.add('signup-modal--visible'));
+  if (signupTab) {
+    signupTab.classList.toggle('auth-modal__tab--active', !isLogin);
+    signupTab.setAttribute('aria-selected', !isLogin ? 'true' : 'false');
+  }
+  if (loginPanel) loginPanel.hidden = !isLogin;
+  if (signupPanel) signupPanel.hidden = isLogin;
 }
 
-function hideSignupModal() {
-  const modal = document.getElementById('signup-modal');
+function showAuthModal(mode) {
+  const modal = document.getElementById('auth-modal');
   if (!modal) return;
-  modal.classList.remove('signup-modal--visible');
+  setAuthModalTab(mode === 'signup' ? 'signup' : 'login');
+  modal.hidden = false;
+  document.body.classList.add('auth-modal-open');
+  requestAnimationFrame(() => modal.classList.add('auth-modal--visible'));
+  const focusEl = mode === 'signup'
+    ? document.getElementById('signup-userid')
+    : document.getElementById('login-userid');
+  setTimeout(() => focusEl?.focus(), 300);
+}
+
+function hideAuthModal() {
+  const modal = document.getElementById('auth-modal');
+  if (!modal) return;
+  modal.classList.remove('auth-modal--visible');
+  document.body.classList.remove('auth-modal-open');
   setTimeout(() => {
     modal.hidden = true;
-    signupModalCallback = null;
   }, 280);
 }
 
-function initSignupModal() {
-  document.getElementById('signup-modal-go')?.addEventListener('click', () => {
-    const cb = signupModalCallback;
-    hideSignupModal();
-    if (cb) cb();
-    else showView('signup');
-  });
+function initAuthModal() {
+  document.getElementById('auth-tab-login')?.addEventListener('click', () => setAuthModalTab('login'));
+  document.getElementById('auth-tab-signup')?.addEventListener('click', () => setAuthModalTab('signup'));
+  document.getElementById('auth-modal-close')?.addEventListener('click', hideAuthModal);
+  document.getElementById('auth-modal-backdrop')?.addEventListener('click', hideAuthModal);
 
-  document.getElementById('signup-modal-close')?.addEventListener('click', hideSignupModal);
-  document.getElementById('signup-modal-backdrop')?.addEventListener('click', hideSignupModal);
+  document.addEventListener('keydown', (e) => {
+    if (e.key !== 'Escape') return;
+    const contactModal = document.getElementById('contact-modal');
+    if (contactModal && !contactModal.hidden) {
+      hideContactModal();
+      return;
+    }
+    hideAuthModal();
+  });
+}
+
+function showContactModal(prefill = {}) {
+  hideAuthModal();
+  const modal = document.getElementById('contact-modal');
+  if (!modal) return;
+
+  const nameInput = document.getElementById('contact-name');
+  const emailInput = document.getElementById('contact-email');
+  if (nameInput && prefill.name) nameInput.value = prefill.name;
+  if (emailInput && prefill.email) emailInput.value = prefill.email;
+
+  modal.hidden = false;
+  document.body.classList.add('auth-modal-open');
+  requestAnimationFrame(() => modal.classList.add('auth-modal--visible'));
+  (nameInput?.value ? emailInput : nameInput)?.focus();
+}
+
+function hideContactModal() {
+  const modal = document.getElementById('contact-modal');
+  if (!modal) return;
+  modal.classList.remove('auth-modal--visible');
+  document.body.classList.remove('auth-modal-open');
+  setTimeout(() => {
+    modal.hidden = true;
+  }, 280);
+}
+
+function initContactModal() {
+  document.getElementById('contact-modal-close')?.addEventListener('click', hideContactModal);
+  document.getElementById('contact-modal-backdrop')?.addEventListener('click', hideContactModal);
 }
 
 function getCurrentView() {
@@ -87,7 +287,7 @@ function showToast(message, type) {
   clearTimeout(toast._timer);
   toast._timer = setTimeout(() => {
     toast.classList.remove('toast--visible');
-  }, 3500);
+  }, type === 'success' && message.length > 40 ? 5000 : 3500);
 }
 
 function setFormLoading(form, loading, loadingText) {
@@ -128,12 +328,14 @@ function renderCommentsHtml(comments) {
     .join('');
 }
 
-function renderPostCard(post, currentUserId, onLike, onComment, onRequireLogin) {
+function renderPostCard(post, currentUserId, onLike, onComment, onRequireLogin, badgeCtx) {
+  const ctx = badgeCtx || getBadgeContext();
   const card = document.createElement('article');
-  card.className = 'post-card';
+  card.className = `post-card ${getPostBadgeClasses(post.id, ctx)}`.trim();
   card.dataset.postId = post.id;
 
   const nickname = post.profiles?.nickname || '익명';
+  const authorBadges = renderBadgesHtml(getUserBadges(post.user_id, ctx), 'author');
   const liked = currentUserId && post.liked_by?.includes(currentUserId);
   const date = new Date(post.created_at).toLocaleDateString('ko-KR', {
     year: 'numeric',
@@ -141,14 +343,21 @@ function renderPostCard(post, currentUserId, onLike, onComment, onRequireLogin) 
     day: 'numeric',
   });
   const commentCount = post.comment_count ?? post.comments?.length ?? 0;
+  const playerName = (post.player_name || '').trim();
+  const playerHtml = playerName
+    ? `<p class="post-card__player">⚾ ${escapeHtml(playerName)}</p>`
+    : '';
+  const tagsHtml = renderPostTagsHtml(post.tags);
 
   card.innerHTML = `
     <div class="post-card__header">
-      <span class="post-card__author">${escapeHtml(nickname)}</span>
+      <span class="post-card__author">${escapeHtml(nickname)}${authorBadges}</span>
       <time class="post-card__date">${date}</time>
     </div>
     <img class="post-card__image" src="${escapeHtml(post.image_url)}" alt="유니폼 사진" loading="lazy">
+    ${playerHtml}
     <p class="post-card__caption">${escapeHtml(post.caption || '')}</p>
+    ${tagsHtml}
     <div class="post-card__actions">
       <button type="button" class="like-btn ${liked ? 'like-btn--active' : ''}" data-like="${post.id}">
         <span aria-hidden="true">${liked ? '♥' : '♡'}</span>
@@ -203,7 +412,90 @@ function renderPostCard(post, currentUserId, onLike, onComment, onRequireLogin) 
   return card;
 }
 
-function renderFeed(container, posts, currentUserId, onLike, emptyMessage, onRequireLogin, onComment) {
+function renderRankCard(item, variant, badgeCtx) {
+  const ctx = badgeCtx || getBadgeContext();
+  const caption = escapeHtml((item.caption || '').slice(0, 40));
+  const name = escapeHtml(item.profiles?.nickname || '익명');
+  let authorBadgeList = getUserBadges(item.user_id, ctx);
+  if (variant === 'today') {
+    authorBadgeList = authorBadgeList.filter((b) => b.id !== 'daily_pick');
+  }
+  if (variant === 'week' && item.rank === 1) {
+    authorBadgeList = authorBadgeList.filter((b) => b.id !== 'weekly_king');
+  }
+  const authorBadges = renderBadgesHtml(authorBadgeList, 'author');
+  const rankBadge = renderRankBadgeHtml(item, variant);
+  const medal = item.rank === 1 ? '🥇' : item.rank === 2 ? '🥈' : item.rank === 3 ? '🥉' : `${item.rank}위`;
+  const stats = `♥ ${item.uniqueLikers}명 · 💬 ${item.uniqueCommenters}명 · ${item.score}점`;
+  const rankClass = getRankCardClasses(item, variant);
+
+  return `
+    <button type="button" class="rank-card rank-card--${variant} ${rankClass}" data-scroll-post="${escapeHtml(item.id)}">
+      <span class="rank-card__medal">${medal}</span>
+      <img class="rank-card__thumb" src="${escapeHtml(item.image_url)}" alt="" loading="lazy">
+      <div class="rank-card__body">
+        <span class="rank-card__author">${name}${authorBadges}${rankBadge}</span>
+        <span class="rank-card__caption">${caption}${(item.caption || '').length > 40 ? '…' : ''}</span>
+        <span class="rank-card__stats">${stats}</span>
+      </div>
+    </button>
+  `;
+}
+
+function renderRankings({ daily, weekly }, badgeCtx) {
+  const ctx = badgeCtx || getBadgeContext();
+  const panel = document.getElementById('ranking-panel');
+  if (!panel) return;
+
+  const dailyHtml = daily?.length
+    ? renderRankCard(daily[0], 'today', ctx)
+    : '<p class="ranking-empty">오늘 반응이 있는 유니폼이 아직 없어요.</p>';
+
+  const weeklyHtml = weekly?.length
+    ? `<ol class="ranking-week-list">${weekly.map((item) => `<li>${renderRankCard(item, 'week', ctx)}</li>`).join('')}</ol>`
+    : '<p class="ranking-empty">이번 주 반응이 있는 유니폼이 아직 없어요.</p>';
+
+  panel.innerHTML = `
+    <div class="ranking-panel__grid">
+      <section class="ranking-block ranking-block--today">
+        <div class="ranking-block__head">
+          <h2 class="ranking-block__title">🏆 오늘의 인기유니폼</h2>
+          <p class="ranking-block__notice"><span class="ranking-block__notice-label">공지</span> 조건에 맞는 칭호는 영구적으로 보존됩니다</p>
+        </div>
+        <div class="ranking-block__content">${dailyHtml}</div>
+      </section>
+      <section class="ranking-block ranking-block--week">
+        <div class="ranking-block__head">
+          <h2 class="ranking-block__title">📅 이 주의 유니폼 TOP 3</h2>
+          <p class="ranking-block__notice"><span class="ranking-block__notice-label">공지</span> 조건에 맞는 칭호는 영구적으로 보존됩니다</p>
+        </div>
+        <div class="ranking-block__content">${weeklyHtml}</div>
+      </section>
+    </div>
+    <p class="ranking-hint">서로 다른 사람의 ♥ 3점 · 💬 2점 · 월요일~일요일 집계</p>
+  `;
+
+  panel.querySelectorAll('[data-scroll-post]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const postId = btn.dataset.scrollPost;
+      const el = document.querySelector(`.post-card[data-post-id="${postId}"]`);
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        el.classList.add('post-card--highlight');
+        setTimeout(() => el.classList.remove('post-card--highlight'), 1500);
+      }
+    });
+    const img = btn.querySelector('.rank-card__thumb');
+    img?.addEventListener('error', () => {
+      if (!img.dataset.fallback) {
+        img.dataset.fallback = '1';
+        img.src = '/assets/demo-uniform.svg';
+      }
+    });
+  });
+}
+
+function renderFeed(container, posts, currentUserId, onLike, emptyMessage, onRequireLogin, onComment, badgeCtx) {
   container.innerHTML = '';
   if (!posts.length) {
     container.innerHTML = `<p class="empty-state">${emptyMessage}</p>`;
@@ -211,7 +503,7 @@ function renderFeed(container, posts, currentUserId, onLike, emptyMessage, onReq
   }
   posts.forEach((post) => {
     container.appendChild(
-      renderPostCard(post, currentUserId, onLike, onComment, onRequireLogin)
+      renderPostCard(post, currentUserId, onLike, onComment, onRequireLogin, badgeCtx)
     );
   });
 }

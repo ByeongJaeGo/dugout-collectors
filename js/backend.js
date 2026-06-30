@@ -37,13 +37,17 @@ function createSupabaseBackend() {
       if (!userId) return Promise.resolve(null);
       return getCurrentProfile(supabaseClient);
     },
-    uploadPost: (userId, file, caption) => uploadPost(supabaseClient, userId, file, caption),
+    uploadPost: (userId, file, postFields) => uploadPost(supabaseClient, userId, file, postFields),
     fetchAllPosts: () => fetchAllPosts(supabaseClient),
     fetchMyPosts: (userId) => fetchMyPosts(supabaseClient, userId),
     fetchLikedPosts: (userId) => fetchLikedPosts(supabaseClient, userId),
+    fetchRankings: () => fetchRankings(supabaseClient),
     addComment: (postId, userId, body) => addComment(supabaseClient, postId, userId, body),
     toggleLike: (postId, userId, alreadyLiked) =>
       toggleLike(supabaseClient, postId, userId, alreadyLiked),
+    createNotification: (payload) => createNotification(supabaseClient, payload),
+    fetchNotifications: (userId) => fetchNotifications(supabaseClient, userId),
+    markNotificationsRead: (userId) => markNotificationsRead(supabaseClient, userId),
   };
 }
 

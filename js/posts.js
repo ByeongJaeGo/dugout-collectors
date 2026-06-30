@@ -1,7 +1,49 @@
 const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
 const MAX_SIZE_MB = 5;
+const MAX_TAGS = 10;
+const MAX_TAG_LEN = 24;
 
-async function uploadPost(supabase, userId, file, caption) {
+function parseTagsInput(raw) {
+  if (!raw || !String(raw).trim()) return [];
+
+  const parts = String(raw)
+    .split(/[,，]+/)
+    .flatMap((chunk) => chunk.match(/#?\S+/g) || [])
+    .map((t) => t.replace(/^#+/, '').trim())
+    .filter((t) => t.length >= 1 && t.length <= MAX_TAG_LEN);
+
+  const seen = new Set();
+  const result = [];
+  for (const tag of parts) {
+    const key = tag.toLowerCase();
+    if (!seen.has(key)) {
+      seen.add(key);
+      result.push(tag);
+    }
+  }
+  return result.slice(0, MAX_TAGS);
+}
+
+function normalizePostFields({ caption, playerName = '', tags = [] }) {
+  const trimmedCaption = String(caption || '').trim();
+  const trimmedPlayer = String(playerName || '').trim().slice(0, 40);
+  const normalizedTags = Array.isArray(tags) ? tags : parseTagsInput(tags);
+
+  if (!trimmedCaption) throw new Error('설명을 입력해 주세요.');
+  if (trimmedPlayer.length > 0 && trimmedPlayer.length < 2) {
+    throw new Error('선수 이름은 2자 이상 입력해 주세요.');
+  }
+
+  return {
+    caption: trimmedCaption,
+    player_name: trimmedPlayer,
+    tags: normalizedTags,
+  };
+}
+
+async function uploadPost(supabase, userId, file, postFields) {
+  const { caption, player_name, tags } = normalizePostFields(postFields);
+
   if (!file) throw new Error('사진을 선택해 주세요.');
   if (!ALLOWED_TYPES.includes(file.type)) {
     throw new Error('JPG, PNG, WEBP, GIF 형식만 업로드할 수 있습니다.');
@@ -26,7 +68,9 @@ async function uploadPost(supabase, userId, file, caption) {
     .insert({
       user_id: userId,
       image_url: urlData.publicUrl,
-      caption: caption.trim(),
+      caption,
+      player_name,
+      tags,
     })
     .select('*, profiles(nickname)')
     .single();
@@ -109,6 +153,25 @@ function enrichPost(post, allLikes) {
     like_count: postLikes.length,
     liked_by: postLikes.map((l) => l.user_id),
   };
+}
+
+async function fetchRankings(supabase) {
+  const [{ data: posts, error: postsError }, { data: likes, error: likesError }, { data: comments, error: commentsError }] =
+    await Promise.all([
+      supabase.from('posts').select('*, profiles(nickname)'),
+      supabase.from('likes').select('post_id, user_id, created_at'),
+      supabase.from('comments').select('post_id, user_id, created_at'),
+    ]);
+
+  if (postsError) throw new Error(postsError.message);
+  if (likesError) throw new Error(likesError.message);
+  if (commentsError) throw new Error(commentsError.message);
+
+  const users = [...new Map(
+    (posts || []).map((p) => [p.user_id, { id: p.user_id, nickname: p.profiles?.nickname || '익명' }])
+  ).values()];
+
+  return computeRankings(posts || [], users, likes || [], comments || []);
 }
 
 async function toggleLike(supabase, postId, userId, alreadyLiked) {

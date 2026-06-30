@@ -12,7 +12,7 @@ function hasCookieConsent() {
 
 function loadAdsenseScript() {
   if (!isAdsenseConfigured() || !hasCookieConsent()) return;
-  if (document.querySelector('script[data-adsense-client]')) return;
+  if (document.querySelector('script[data-adsense-client], script[src*="adsbygoogle.js"]')) return;
 
   const script = document.createElement('script');
   script.async = true;

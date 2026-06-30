@@ -21,6 +21,6 @@ const CONTACT_EMAIL = 'gobyjea@gmail.com';
  * 3) 승인 후 발급된 ca-pub- ID → ADSENSE_CLIENT_ID
  * 4) ads.txt에 pub- ID 등록
  */
-const ADSENSE_CLIENT_ID = '';
-const ADSENSE_VERIFICATION = '';
+const ADSENSE_CLIENT_ID = 'ca-pub-5264814436773700';
+const ADSENSE_VERIFICATION = 'ca-pub-5264814436773700';
 const SITE_URL = 'https://workspace-chi-one-16.vercel.app';

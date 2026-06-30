@@ -2,5 +2,8 @@
   "name": "dugout-collectors",
   "version": "1.0.0",
   "private": true,
-  "description": "Dugout Collectors — 야구 희귀 유니폼·용품 사진 공유"
+  "description": "Dugout Collectors — 야구 희귀 유니폼·용품 사진 공유",
+  "scripts": {
+    "build": "rm -rf dist && mkdir -p dist && cp index.html dist/ && cp -r css js assets dist/"
+  }
 }

@@ -5,3 +5,4 @@ test-baseball.jpg
 node_modules
 .env
 .env.*
+dist

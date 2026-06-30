@@ -8,6 +8,7 @@ Thumbs.db
 # Local tools
 .playwright-mcp/
 node_modules/
+dist/
 
 # Secrets (use js/config.js placeholders in repo)
 .env

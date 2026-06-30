@@ -19,6 +19,9 @@ create table if not exists public.posts (
   image_urls text[] not null default '{}',
   caption text not null default '',
   player_name text not null default '',
+  team text not null default '',
+  season_year integer,
+  kit_type text not null default '',
   tags text[] not null default '{}',
   created_at timestamptz not null default now()
 );
@@ -45,6 +48,11 @@ create index if not exists likes_post_id_idx on public.likes (post_id);
 -- 기존 DB에 posts.image_urls 없으면 실행:
 -- alter table public.posts add column if not exists image_urls text[] not null default '{}';
 -- update public.posts set image_urls = array[image_url] where coalesce(array_length(image_urls, 1), 0) = 0 and image_url <> '';
+
+-- 기존 DB에 유니폼 정보 필드 없으면 실행:
+-- alter table public.posts add column if not exists team text not null default '';
+-- alter table public.posts add column if not exists season_year integer;
+-- alter table public.posts add column if not exists kit_type text not null default '';
 
 -- comments
 create table if not exists public.comments (

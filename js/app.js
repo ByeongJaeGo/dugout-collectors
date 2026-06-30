@@ -283,6 +283,9 @@ async function handleUpload(e) {
   const files = form.photo.files;
   const caption = form.caption.value;
   const playerName = form.player_name.value;
+  const team = form.team.value;
+  const seasonYear = form.season_year.value;
+  const kitType = form.kit_type.value;
   const tagsRaw = form.tags.value;
 
   if (!files?.length) {
@@ -296,6 +299,9 @@ async function handleUpload(e) {
     await backend.uploadPost(currentUser.id, files, {
       caption,
       playerName,
+      team,
+      seasonYear,
+      kitType,
       tags: parseTagsInput(tagsRaw),
     });
     showToast('업로드 완료!', 'success');

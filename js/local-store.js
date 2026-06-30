@@ -6,7 +6,7 @@ const LS_NOTIFICATIONS = 'dugout_notifications';
 const LS_SESSION = 'dugout_session';
 const LS_SEEDED = 'dugout_seeded';
 const DEMO_IMAGE = '/assets/demo-uniform.svg';
-const SEED_VERSION = '7';
+const SEED_VERSION = '8';
 const BOT_ID = '00000000-0000-4000-8000-000000000001';
 const BOT2_ID = '00000000-0000-4000-8000-000000000002';
 const BOT3_ID = '00000000-0000-4000-8000-000000000003';
@@ -117,6 +117,9 @@ function seedDemoData() {
       image_url: DEMO_IMAGE,
       caption: '1980년대 빈티지 야구 유니폼 · 데모 샘플',
       player_name: '박찬호',
+      team: 'KIA 타이거즈',
+      season_year: 1996,
+      kit_type: 'home',
       tags: ['KBO', '빈티지', '90년대'],
       created_at: hoursAgo(48),
     },
@@ -126,6 +129,9 @@ function seedDemoData() {
       image_url: DEMO_IMAGE,
       caption: '1995 KBO 올스타 레플리카 · 한정판',
       player_name: '이종범',
+      team: '삼성 라이온즈',
+      season_year: 1995,
+      kit_type: 'away',
       tags: ['KBO', '올스타', '레플리카'],
       created_at: hoursAgo(24),
     },
@@ -135,6 +141,9 @@ function seedDemoData() {
       image_url: DEMO_IMAGE,
       caption: 'MLB 클래식 로드 유니폼 · 희귀 컬러',
       player_name: '오타니',
+      team: 'LA 에인절스',
+      season_year: 2023,
+      kit_type: 'home',
       tags: ['MLB', '레플리카', '에인절스'],
       created_at: hoursAgo(6),
     },
@@ -277,7 +286,7 @@ const localBackend = {
   },
 
   async uploadPost(userId, files, postFields) {
-    const { caption, player_name, tags } = normalizePostFields(postFields);
+    const { caption, player_name, team, season_year, kit_type, tags } = normalizePostFields(postFields);
     const list = validateImageFiles(files);
 
     const image_urls = await Promise.all(list.map((file) => fileToDataUrl(file)));
@@ -289,6 +298,9 @@ const localBackend = {
       image_urls,
       caption,
       player_name,
+      team,
+      season_year,
+      kit_type,
       tags,
       created_at: new Date().toISOString(),
     };

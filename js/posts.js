@@ -86,25 +86,52 @@ function parseTagsInput(raw) {
   return result.slice(0, MAX_TAGS);
 }
 
-function normalizePostFields({ caption, playerName = '', tags = [] }) {
+function normalizePostFields({
+  caption,
+  playerName = '',
+  tags = [],
+  team = '',
+  seasonYear = '',
+  kitType = '',
+}) {
   const trimmedCaption = String(caption || '').trim();
   const trimmedPlayer = String(playerName || '').trim().slice(0, 40);
+  const trimmedTeam = String(team || '').trim().slice(0, 40);
   const normalizedTags = Array.isArray(tags) ? tags : parseTagsInput(tags);
 
   if (!trimmedCaption) throw new Error('설명을 입력해 주세요.');
   if (trimmedPlayer.length > 0 && trimmedPlayer.length < 2) {
     throw new Error('선수 이름은 2자 이상 입력해 주세요.');
   }
+  if (trimmedTeam.length > 0 && trimmedTeam.length < 2) {
+    throw new Error('팀 이름은 2자 이상 입력해 주세요.');
+  }
+
+  let season_year = null;
+  const yearStr = String(seasonYear ?? '').trim();
+  if (yearStr) {
+    const y = Number.parseInt(yearStr, 10);
+    if (!Number.isInteger(y) || y < 1900 || y > 2100) {
+      throw new Error('연도는 1900~2100 사이 숫자로 입력해 주세요.');
+    }
+    season_year = y;
+  }
+
+  const kit = String(kitType || '').trim();
+  const kit_type = kit === 'home' || kit === 'away' ? kit : '';
 
   return {
     caption: trimmedCaption,
     player_name: trimmedPlayer,
+    team: trimmedTeam,
+    season_year,
+    kit_type,
     tags: normalizedTags,
   };
 }
 
 async function uploadPost(supabase, userId, files, postFields) {
-  const { caption, player_name, tags } = normalizePostFields(postFields);
+  const { caption, player_name, team, season_year, kit_type, tags } = normalizePostFields(postFields);
   const image_urls = await uploadImageFiles(supabase, userId, files);
 
   const { data, error } = await supabase
@@ -115,6 +142,9 @@ async function uploadPost(supabase, userId, files, postFields) {
       image_urls,
       caption,
       player_name,
+      team,
+      season_year,
+      kit_type,
       tags,
     })
     .select('*, profiles(nickname)')

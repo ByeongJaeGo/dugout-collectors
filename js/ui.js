@@ -166,13 +166,38 @@ function filterPostsByQuery(posts, query) {
   if (!q) return posts;
   return posts.filter((p) => {
     const tagText = (p.tags || []).join(' ').toLowerCase();
+    const yearText = p.season_year ? String(p.season_year) : '';
+    const kitLabel = formatKitType(p.kit_type).toLowerCase();
     return (
       (p.caption || '').toLowerCase().includes(q) ||
       (p.player_name || '').toLowerCase().includes(q) ||
+      (p.team || '').toLowerCase().includes(q) ||
+      yearText.includes(q) ||
+      kitLabel.includes(q) ||
       tagText.includes(q) ||
       (p.profiles?.nickname || '').toLowerCase().includes(q)
     );
   });
+}
+
+function formatKitType(kitType) {
+  if (kitType === 'home') return '홈';
+  if (kitType === 'away') return '원정';
+  return '';
+}
+
+function renderPostUniformMetaHtml(post) {
+  const parts = [];
+  const team = (post.team || '').trim();
+  const year = post.season_year ? String(post.season_year) : '';
+  const kit = formatKitType(post.kit_type);
+
+  if (team) parts.push(`<span class="post-card__meta-item post-card__meta-item--team">${escapeHtml(team)}</span>`);
+  if (year) parts.push(`<span class="post-card__meta-item post-card__meta-item--year">${escapeHtml(year)}</span>`);
+  if (kit) parts.push(`<span class="post-card__meta-item post-card__meta-item--kit">${escapeHtml(kit)}</span>`);
+
+  if (!parts.length) return '';
+  return `<div class="post-card__meta">${parts.join('')}</div>`;
 }
 
 function renderPostTagsHtml(tags) {
@@ -347,6 +372,7 @@ function renderPostCard(post, currentUserId, onLike, onComment, onRequireLogin, 
   const playerHtml = playerName
     ? `<p class="post-card__player">⚾ ${escapeHtml(playerName)}</p>`
     : '';
+  const uniformMetaHtml = renderPostUniformMetaHtml(post);
   const tagsHtml = renderPostTagsHtml(post.tags);
   const images = getPostImages(post);
 
@@ -357,6 +383,7 @@ function renderPostCard(post, currentUserId, onLike, onComment, onRequireLogin, 
     </div>
     ${renderPostGalleryHtml(post.id, images)}
     ${playerHtml}
+    ${uniformMetaHtml}
     <p class="post-card__caption">${escapeHtml(post.caption || '')}</p>
     ${tagsHtml}
     <div class="post-card__actions">

@@ -1003,6 +1003,8 @@ body.auth-modal-open {
 .form-group input[type='text'],
 .form-group input[type='email'],
 .form-group input[type='password'],
+.form-group input[type='number'],
+.form-group select,
 .form-group textarea {
   width: 100%;
   padding: 10px 12px;
@@ -1011,6 +1013,29 @@ body.auth-modal-open {
   font-size: 1rem;
   font-family: inherit;
   transition: border-color 0.15s;
+  box-sizing: border-box;
+}
+
+.form-row {
+  display: grid;
+  grid-template-columns: 1fr 120px;
+  gap: 12px;
+}
+
+.form-group select {
+  background: #fff;
+  cursor: pointer;
+}
+
+.form-group input[type='number'] {
+  appearance: textfield;
+  -moz-appearance: textfield;
+}
+
+.form-group input[type='number']::-webkit-outer-spin-button,
+.form-group input[type='number']::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
 }
 
 .input-row {
@@ -1067,6 +1092,7 @@ body.auth-modal-open {
 }
 
 .form-group input:focus,
+.form-group select:focus,
 .form-group textarea:focus {
   outline: none;
   border-color: var(--color-primary);
@@ -1452,6 +1478,38 @@ body.auth-modal-open {
   color: var(--color-text);
 }
 
+.post-card__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 6px 12px 0;
+}
+
+.post-card__meta-item {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 8px;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+.post-card__meta-item--team {
+  background: #eff6ff;
+  color: #1d4ed8;
+}
+
+.post-card__meta-item--year {
+  background: #f0fdf4;
+  color: #166534;
+}
+
+.post-card__meta-item--kit {
+  background: #fff7ed;
+  color: #c2410c;
+}
+
 .post-card__tags {
   display: flex;
   flex-wrap: wrap;
@@ -1711,6 +1769,10 @@ body.auth-modal-open {
   }
 
   .feed-list {
+    grid-template-columns: 1fr;
+  }
+
+  .form-row {
     grid-template-columns: 1fr;
   }
 }

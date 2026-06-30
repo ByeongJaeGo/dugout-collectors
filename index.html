@@ -75,7 +75,7 @@
       </div>
       <div id="ranking-panel" class="ranking-panel" aria-live="polite"></div>
       <form id="search-form" class="search-bar" role="search">
-        <input type="search" id="search-input" name="q" placeholder="선수, 태그, 팀, 설명으로 검색…" autocomplete="off">
+        <input type="search" id="search-input" name="q" placeholder="선수, 팀, 연도, 태그, 설명으로 검색…" autocomplete="off">
         <button type="submit" class="search-bar__btn" aria-label="검색">🔍</button>
       </form>
       <div id="guest-cta" class="guest-cta">
@@ -109,6 +109,27 @@
           <input type="text" id="player-name-input" name="player_name" maxlength="40" placeholder="예: 이정후, 오타니, 류현진">
           <p class="form-hint">유니폼에 적힌 선수 이름 (선택)</p>
         </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="team-input">팀</label>
+            <input type="text" id="team-input" name="team" maxlength="40" placeholder="예: LA 다저스, 한화">
+            <p class="form-hint">소속 팀 (선택)</p>
+          </div>
+          <div class="form-group">
+            <label for="season-year-input">연도</label>
+            <input type="number" id="season-year-input" name="season_year" min="1900" max="2100" placeholder="예: 2018">
+            <p class="form-hint">시즌 연도 (선택)</p>
+          </div>
+        </div>
+        <div class="form-group">
+          <label for="kit-type-input">홈/원정</label>
+          <select id="kit-type-input" name="kit_type">
+            <option value="">선택 안 함</option>
+            <option value="home">홈</option>
+            <option value="away">원정</option>
+          </select>
+          <p class="form-hint">유니폼 종류 (선택)</p>
+        </div>
         <div class="form-group">
           <label for="tags-input">태그</label>
           <input type="text" id="tags-input" name="tags" maxlength="120" placeholder="예: KBO, 빈티지, LG, #90년대">
@@ -116,7 +137,7 @@
         </div>
         <div class="form-group">
           <label for="caption-input">설명</label>
-          <textarea id="caption-input" name="caption" required maxlength="300" placeholder="팀, 연도, 에디션 등 간단히 적어 주세요."></textarea>
+          <textarea id="caption-input" name="caption" required maxlength="300" placeholder="에디션, 특징, 사인 여부 등 간단히 적어 주세요."></textarea>
         </div>
         <button type="submit" class="btn btn--primary">올리기</button>
       </form>

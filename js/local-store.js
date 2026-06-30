@@ -193,7 +193,7 @@ function toPost(post, users, likes, comments) {
   const postLikes = likes.filter((l) => l.post_id === post.id);
   const base = {
     ...post,
-    profiles: { nickname: user?.nickname || '익명' },
+    profiles: post.profiles || { nickname: user?.nickname || '익명' },
     like_count: postLikes.length,
     liked_by: postLikes.map((l) => l.user_id),
   };
@@ -305,9 +305,7 @@ const localBackend = {
   },
 
   async fetchAllPosts() {
-    const posts = read(LS_POSTS, []).sort(
-      (a, b) => new Date(b.created_at) - new Date(a.created_at)
-    );
+    const posts = mergeCuratedPosts(read(LS_POSTS, []));
     const users = read(LS_USERS, []);
     const likes = normalizeLikes(read(LS_LIKES, []));
     const comments = read(LS_COMMENTS, []);
@@ -315,7 +313,7 @@ const localBackend = {
   },
 
   async fetchRankings() {
-    const posts = read(LS_POSTS, []);
+    const posts = mergeCuratedPosts(read(LS_POSTS, []));
     const users = read(LS_USERS, []);
     const likes = normalizeLikes(read(LS_LIKES, []));
     const comments = read(LS_COMMENTS, []);

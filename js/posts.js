@@ -105,13 +105,14 @@ async function fetchPostsWithMeta(supabase, postsQuery) {
 }
 
 async function fetchAllPosts(supabase) {
-  return fetchPostsWithMeta(
+  const posts = await fetchPostsWithMeta(
     supabase,
     supabase
       .from('posts')
       .select('*, profiles(nickname)')
       .order('created_at', { ascending: false })
   );
+  return mergeCuratedPosts(posts);
 }
 
 async function fetchMyPosts(supabase, userId) {
@@ -167,11 +168,12 @@ async function fetchRankings(supabase) {
   if (likesError) throw new Error(likesError.message);
   if (commentsError) throw new Error(commentsError.message);
 
+  const mergedPosts = mergeCuratedPosts(posts || []);
   const users = [...new Map(
-    (posts || []).map((p) => [p.user_id, { id: p.user_id, nickname: p.profiles?.nickname || '익명' }])
+    mergedPosts.map((p) => [p.user_id, { id: p.user_id, nickname: p.profiles?.nickname || '익명' }])
   ).values()];
 
-  return computeRankings(posts || [], users, likes || [], comments || []);
+  return computeRankings(mergedPosts, users, likes || [], comments || []);
 }
 
 async function toggleLike(supabase, postId, userId, alreadyLiked) {

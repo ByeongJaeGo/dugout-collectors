@@ -1,0 +1,47 @@
+const CURATED_OWNER_ID = '00000000-0000-4000-8000-000000000099';
+
+const CURATED_POSTS = [
+  {
+    id: 'curated-yamamoto-back',
+    user_id: CURATED_OWNER_ID,
+    image_url: '/assets/posts/yamamoto-back.jpg',
+    caption: '2025 mvp시즌 유니폼',
+    player_name: '야마모토 요시노부',
+    tags: ['MLB', '다저스', 'MVP', '2025'],
+    created_at: '2025-12-15T09:00:00.000Z',
+  },
+  {
+    id: 'curated-yamamoto-front',
+    user_id: CURATED_OWNER_ID,
+    image_url: '/assets/posts/yamamoto-front.jpg',
+    caption: '2025 mvp시즌 유니폼',
+    player_name: '야마모토 요시노부',
+    tags: ['MLB', '다저스', 'MVP', '2025'],
+    created_at: '2025-12-15T08:30:00.000Z',
+  },
+];
+
+function enrichCuratedPost(post) {
+  return {
+    ...post,
+    profiles: { nickname: 'Dugout' },
+    like_count: 0,
+    liked_by: [],
+    comments: [],
+    comment_count: 0,
+    is_curated: true,
+  };
+}
+
+function getCuratedPosts() {
+  return CURATED_POSTS.map(enrichCuratedPost);
+}
+
+function mergeCuratedPosts(posts) {
+  const seen = new Set(posts.map((p) => p.id));
+  const merged = [...posts];
+  for (const curated of getCuratedPosts()) {
+    if (!seen.has(curated.id)) merged.push(curated);
+  }
+  return merged.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+}

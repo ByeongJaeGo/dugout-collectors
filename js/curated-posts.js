@@ -4,6 +4,7 @@ const CURATED_POSTS = [
   {
     id: 'curated-hoying-2018',
     user_id: CURATED_OWNER_ID,
+    image_urls: ['/assets/posts/hoying-2018.jpg'],
     image_url: '/assets/posts/hoying-2018.jpg',
     caption: '2018 시즌 유니폼',
     player_name: '제러드 호잉',
@@ -11,28 +12,21 @@ const CURATED_POSTS = [
     created_at: '2026-06-30T12:00:00.000Z',
   },
   {
-    id: 'curated-yamamoto-back',
+    id: 'curated-yamamoto-mvp',
     user_id: CURATED_OWNER_ID,
+    image_urls: ['/assets/posts/yamamoto-back.jpg', '/assets/posts/yamamoto-front.jpg'],
     image_url: '/assets/posts/yamamoto-back.jpg',
     caption: '2025 mvp시즌 유니폼',
     player_name: '야마모토 요시노부',
     tags: ['MLB', '다저스', 'MVP', '2025'],
     created_at: '2025-12-15T09:00:00.000Z',
   },
-  {
-    id: 'curated-yamamoto-front',
-    user_id: CURATED_OWNER_ID,
-    image_url: '/assets/posts/yamamoto-front.jpg',
-    caption: '2025 mvp시즌 유니폼',
-    player_name: '야마모토 요시노부',
-    tags: ['MLB', '다저스', 'MVP', '2025'],
-    created_at: '2025-12-15T08:30:00.000Z',
-  },
 ];
 
 function enrichCuratedPost(post) {
+  const normalized = normalizePostRecord(post);
   return {
-    ...post,
+    ...normalized,
     profiles: { nickname: 'Dugout' },
     like_count: 0,
     liked_by: [],

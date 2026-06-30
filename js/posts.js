@@ -1,7 +1,69 @@
 const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
 const MAX_SIZE_MB = 5;
+const MAX_PHOTOS = 10;
 const MAX_TAGS = 10;
 const MAX_TAG_LEN = 24;
+
+function getPostImages(post) {
+  if (Array.isArray(post?.image_urls) && post.image_urls.length > 0) {
+    return post.image_urls.filter(Boolean);
+  }
+  if (post?.image_url) return [post.image_url];
+  return [];
+}
+
+function normalizePostRecord(post) {
+  const image_urls = getPostImages(post);
+  return {
+    ...post,
+    image_urls,
+    image_url: image_urls[0] || post?.image_url || '',
+  };
+}
+
+function toFileList(files) {
+  if (!files) return [];
+  return Array.from(files);
+}
+
+function validateImageFiles(files) {
+  const list = toFileList(files);
+  if (!list.length) throw new Error('사진을 1장 이상 선택해 주세요.');
+  if (list.length > MAX_PHOTOS) {
+    throw new Error(`사진은 최대 ${MAX_PHOTOS}장까지 올릴 수 있습니다.`);
+  }
+  for (const file of list) {
+    if (!ALLOWED_TYPES.includes(file.type)) {
+      throw new Error('JPG, PNG, WEBP, GIF 형식만 업로드할 수 있습니다.');
+    }
+    if (file.size > MAX_SIZE_MB * 1024 * 1024) {
+      throw new Error(`각 파일 크기는 ${MAX_SIZE_MB}MB 이하여야 합니다.`);
+    }
+  }
+  return list;
+}
+
+async function uploadImageFiles(supabase, userId, files) {
+  const list = validateImageFiles(files);
+  const urls = [];
+
+  for (let i = 0; i < list.length; i++) {
+    const file = list[i];
+    const ext = file.name.split('.').pop()?.toLowerCase() || 'jpg';
+    const path = `${userId}/${Date.now()}-${i}.${ext}`;
+
+    const { error: uploadError } = await supabase.storage
+      .from(STORAGE_BUCKET)
+      .upload(path, file, { cacheControl: '3600', upsert: false });
+
+    if (uploadError) throw new Error(`업로드 실패: ${uploadError.message}`);
+
+    const { data: urlData } = supabase.storage.from(STORAGE_BUCKET).getPublicUrl(path);
+    urls.push(urlData.publicUrl);
+  }
+
+  return urls;
+}
 
 function parseTagsInput(raw) {
   if (!raw || !String(raw).trim()) return [];
@@ -41,33 +103,16 @@ function normalizePostFields({ caption, playerName = '', tags = [] }) {
   };
 }
 
-async function uploadPost(supabase, userId, file, postFields) {
+async function uploadPost(supabase, userId, files, postFields) {
   const { caption, player_name, tags } = normalizePostFields(postFields);
-
-  if (!file) throw new Error('사진을 선택해 주세요.');
-  if (!ALLOWED_TYPES.includes(file.type)) {
-    throw new Error('JPG, PNG, WEBP, GIF 형식만 업로드할 수 있습니다.');
-  }
-  if (file.size > MAX_SIZE_MB * 1024 * 1024) {
-    throw new Error(`파일 크기는 ${MAX_SIZE_MB}MB 이하여야 합니다.`);
-  }
-
-  const ext = file.name.split('.').pop()?.toLowerCase() || 'jpg';
-  const path = `${userId}/${Date.now()}.${ext}`;
-
-  const { error: uploadError } = await supabase.storage
-    .from(STORAGE_BUCKET)
-    .upload(path, file, { cacheControl: '3600', upsert: false });
-
-  if (uploadError) throw new Error(`업로드 실패: ${uploadError.message}`);
-
-  const { data: urlData } = supabase.storage.from(STORAGE_BUCKET).getPublicUrl(path);
+  const image_urls = await uploadImageFiles(supabase, userId, files);
 
   const { data, error } = await supabase
     .from('posts')
     .insert({
       user_id: userId,
-      image_url: urlData.publicUrl,
+      image_url: image_urls[0],
+      image_urls,
       caption,
       player_name,
       tags,
@@ -76,7 +121,7 @@ async function uploadPost(supabase, userId, file, postFields) {
     .single();
 
   if (error) throw new Error(error.message);
-  return data;
+  return normalizePostRecord(data);
 }
 
 async function fetchPostsWithMeta(supabase, postsQuery) {
@@ -100,7 +145,7 @@ async function fetchPostsWithMeta(supabase, postsQuery) {
   if (commentsError) throw new Error(commentsError.message);
 
   return posts.map((post) =>
-    attachComments(enrichPost(post, likes), comments || [])
+    attachComments(enrichPost(normalizePostRecord(post), likes), comments || [])
   );
 }
 

@@ -43,7 +43,7 @@ function rankPosts(posts, users, likes, comments, since, limit) {
       return {
         id: post.id,
         user_id: post.user_id,
-        image_url: post.image_url,
+        image_url: getPostImages(post)[0] || post.image_url,
         caption: post.caption,
         profiles: { nickname },
         ...eng,

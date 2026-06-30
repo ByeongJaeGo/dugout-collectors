@@ -16,6 +16,7 @@ create table if not exists public.posts (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references public.profiles (id) on delete cascade,
   image_url text not null,
+  image_urls text[] not null default '{}',
   caption text not null default '',
   player_name text not null default '',
   tags text[] not null default '{}',
@@ -40,6 +41,10 @@ create index if not exists likes_post_id_idx on public.likes (post_id);
 -- 기존 DB에 posts.player_name / posts.tags 없으면 실행:
 -- alter table public.posts add column if not exists player_name text not null default '';
 -- alter table public.posts add column if not exists tags text[] not null default '{}';
+
+-- 기존 DB에 posts.image_urls 없으면 실행:
+-- alter table public.posts add column if not exists image_urls text[] not null default '{}';
+-- update public.posts set image_urls = array[image_url] where coalesce(array_length(image_urls, 1), 0) = 0 and image_url <> '';
 
 -- comments
 create table if not exists public.comments (

@@ -37,7 +37,7 @@ function createSupabaseBackend() {
       if (!userId) return Promise.resolve(null);
       return getCurrentProfile(supabaseClient);
     },
-    uploadPost: (userId, file, postFields) => uploadPost(supabaseClient, userId, file, postFields),
+    uploadPost: (userId, files, postFields) => uploadPost(supabaseClient, userId, files, postFields),
     fetchAllPosts: () => fetchAllPosts(supabaseClient),
     fetchMyPosts: (userId) => fetchMyPosts(supabaseClient, userId),
     fetchLikedPosts: (userId) => fetchLikedPosts(supabaseClient, userId),

@@ -172,9 +172,9 @@ function bindEvents() {
 
   const fileInput = document.getElementById('photo-input');
   fileInput.addEventListener('change', () => {
-    previewImage(
-      fileInput.files[0],
-      document.getElementById('photo-preview'),
+    previewImages(
+      fileInput.files,
+      document.getElementById('photo-preview-list'),
       document.getElementById('photo-placeholder')
     );
   });
@@ -280,27 +280,27 @@ async function handleUpload(e) {
   }
 
   const form = e.target;
-  const file = form.photo.files[0];
+  const files = form.photo.files;
   const caption = form.caption.value;
   const playerName = form.player_name.value;
   const tagsRaw = form.tags.value;
 
-  if (!file) {
-    showToast('사진을 선택해 주세요.', 'error');
+  if (!files?.length) {
+    showToast('사진을 1장 이상 선택해 주세요.', 'error');
     return;
   }
 
   setFormLoading(form, true, '업로드 중…');
 
   try {
-    await backend.uploadPost(currentUser.id, file, {
+    await backend.uploadPost(currentUser.id, files, {
       caption,
       playerName,
       tags: parseTagsInput(tagsRaw),
     });
     showToast('업로드 완료!', 'success');
     form.reset();
-    previewImage(null, document.getElementById('photo-preview'), document.getElementById('photo-placeholder'));
+    previewImages(null, document.getElementById('photo-preview-list'), document.getElementById('photo-placeholder'));
     await loadFeed();
     showView('feed');
   } catch (err) {

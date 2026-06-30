@@ -99,9 +99,9 @@
         <div class="form-group">
           <label>사진</label>
           <div class="photo-upload">
-            <input type="file" id="photo-input" name="photo" accept="image/jpeg,image/png,image/webp,image/gif" required>
-            <p id="photo-placeholder" class="photo-placeholder">탭하여 사진 선택<br><small>JPG, PNG, WEBP, GIF · 최대 5MB</small></p>
-            <img id="photo-preview" class="photo-preview" alt="미리보기" hidden>
+            <input type="file" id="photo-input" name="photo" accept="image/jpeg,image/png,image/webp,image/gif" multiple required>
+            <p id="photo-placeholder" class="photo-placeholder">탭하여 사진 선택<br><small>JPG, PNG, WEBP, GIF · 최대 5MB · 최대 10장</small></p>
+            <div id="photo-preview-list" class="photo-preview-list" hidden></div>
           </div>
         </div>
         <div class="form-group">

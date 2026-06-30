@@ -348,13 +348,14 @@ function renderPostCard(post, currentUserId, onLike, onComment, onRequireLogin, 
     ? `<p class="post-card__player">⚾ ${escapeHtml(playerName)}</p>`
     : '';
   const tagsHtml = renderPostTagsHtml(post.tags);
+  const images = getPostImages(post);
 
   card.innerHTML = `
     <div class="post-card__header">
       <span class="post-card__author">${escapeHtml(nickname)}${authorBadges}</span>
       <time class="post-card__date">${date}</time>
     </div>
-    <img class="post-card__image" src="${escapeHtml(post.image_url)}" alt="유니폼 사진" loading="lazy">
+    ${renderPostGalleryHtml(post.id, images)}
     ${playerHtml}
     <p class="post-card__caption">${escapeHtml(post.caption || '')}</p>
     ${tagsHtml}
@@ -375,14 +376,7 @@ function renderPostCard(post, currentUserId, onLike, onComment, onRequireLogin, 
   `;
 
   const likeBtn = card.querySelector('[data-like]');
-  const img = card.querySelector('.post-card__image');
-  img.addEventListener('error', () => {
-    if (!img.dataset.fallback) {
-      img.dataset.fallback = '1';
-      img.src = '/assets/demo-uniform.svg';
-    }
-  });
-
+  initPostGallery(card);
   likeBtn.dataset.liked = liked ? 'true' : 'false';
   likeBtn.addEventListener('click', () => {
     if (!currentUserId) {
@@ -514,7 +508,124 @@ function escapeHtml(str) {
   return div.innerHTML;
 }
 
+function renderPostGalleryHtml(postId, images) {
+  const urls = (images || []).filter(Boolean);
+  if (!urls.length) {
+    return '<img class="post-card__image" src="/assets/demo-uniform.svg" alt="유니폼 사진">';
+  }
+  if (urls.length === 1) {
+    return `<img class="post-card__image" src="${escapeHtml(urls[0])}" alt="유니폼 사진" loading="lazy">`;
+  }
+
+  const slides = urls
+    .map(
+      (url, i) =>
+        `<img class="post-gallery__image${i === 0 ? ' is-active' : ''}" src="${escapeHtml(url)}" alt="유니폼 사진 ${i + 1}" loading="${i === 0 ? 'eager' : 'lazy'}">`
+    )
+    .join('');
+
+  const dots = urls
+    .map(
+      (_, i) =>
+        `<button type="button" class="post-gallery__dot${i === 0 ? ' is-active' : ''}" data-gallery-dot="${i}" aria-label="${i + 1}번째 사진"></button>`
+    )
+    .join('');
+
+  return `
+    <div class="post-gallery" data-gallery-id="${escapeHtml(postId)}">
+      <div class="post-gallery__viewport">${slides}</div>
+      <button type="button" class="post-gallery__nav post-gallery__nav--prev" data-gallery-prev aria-label="이전 사진">‹</button>
+      <button type="button" class="post-gallery__nav post-gallery__nav--next" data-gallery-next aria-label="다음 사진">›</button>
+      <span class="post-gallery__count">1 / ${urls.length}</span>
+      <div class="post-gallery__dots">${dots}</div>
+    </div>
+  `;
+}
+
+function initPostGallery(card) {
+  const singleImg = card.querySelector('.post-card__image');
+  if (singleImg) {
+    singleImg.addEventListener('error', () => {
+      if (!singleImg.dataset.fallback) {
+        singleImg.dataset.fallback = '1';
+        singleImg.src = '/assets/demo-uniform.svg';
+      }
+    });
+    return;
+  }
+
+  const gallery = card.querySelector('.post-gallery');
+  if (!gallery) return;
+
+  const images = [...gallery.querySelectorAll('.post-gallery__image')];
+  const dots = [...gallery.querySelectorAll('[data-gallery-dot]')];
+  const countEl = gallery.querySelector('.post-gallery__count');
+  const prevBtn = gallery.querySelector('[data-gallery-prev]');
+  const nextBtn = gallery.querySelector('[data-gallery-next]');
+  let index = 0;
+
+  const show = (nextIndex) => {
+    index = (nextIndex + images.length) % images.length;
+    images.forEach((img, i) => img.classList.toggle('is-active', i === index));
+    dots.forEach((dot, i) => dot.classList.toggle('is-active', i === index));
+    if (countEl) countEl.textContent = `${index + 1} / ${images.length}`;
+  };
+
+  images.forEach((img) => {
+    img.addEventListener('error', () => {
+      if (!img.dataset.fallback) {
+        img.dataset.fallback = '1';
+        img.src = '/assets/demo-uniform.svg';
+      }
+    });
+  });
+
+  prevBtn?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    show(index - 1);
+  });
+  nextBtn?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    show(index + 1);
+  });
+  dots.forEach((dot) => {
+    dot.addEventListener('click', (e) => {
+      e.stopPropagation();
+      show(Number(dot.dataset.galleryDot));
+    });
+  });
+}
+
+function previewImages(files, listEl, placeholderEl) {
+  const selected = files ? Array.from(files) : [];
+  listEl.innerHTML = '';
+
+  if (!selected.length) {
+    listEl.hidden = true;
+    placeholderEl.hidden = false;
+    return;
+  }
+
+  selected.forEach((file, i) => {
+    const item = document.createElement('div');
+    item.className = 'photo-preview-item';
+    const img = document.createElement('img');
+    img.className = 'photo-preview-item__img';
+    img.alt = `미리보기 ${i + 1}`;
+    img.src = URL.createObjectURL(file);
+    const label = document.createElement('span');
+    label.className = 'photo-preview-item__label';
+    label.textContent = `${i + 1}`;
+    item.append(img, label);
+    listEl.appendChild(item);
+  });
+
+  listEl.hidden = false;
+  placeholderEl.hidden = true;
+}
+
 function previewImage(file, imgEl, placeholderEl) {
+  if (!imgEl) return;
   if (!file) {
     imgEl.hidden = true;
     placeholderEl.hidden = false;

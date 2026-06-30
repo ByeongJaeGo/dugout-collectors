@@ -276,20 +276,17 @@ const localBackend = {
     return { id: user.id, nickname: user.nickname };
   },
 
-  async uploadPost(userId, file, postFields) {
+  async uploadPost(userId, files, postFields) {
     const { caption, player_name, tags } = normalizePostFields(postFields);
+    const list = validateImageFiles(files);
 
-    const ALLOWED = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
-    if (!file) throw new Error('사진을 선택해 주세요.');
-    if (!ALLOWED.includes(file.type)) throw new Error('JPG, PNG, WEBP, GIF만 업로드할 수 있습니다.');
-    if (file.size > 5 * 1024 * 1024) throw new Error('파일 크기는 5MB 이하여야 합니다.');
-
-    const imageUrl = await fileToDataUrl(file);
+    const image_urls = await Promise.all(list.map((file) => fileToDataUrl(file)));
     const posts = read(LS_POSTS, []);
     const post = {
       id: uid(),
       user_id: userId,
-      image_url: imageUrl,
+      image_url: image_urls[0],
+      image_urls,
       caption,
       player_name,
       tags,
@@ -301,7 +298,7 @@ const localBackend = {
     const users = read(LS_USERS, []);
     const likes = read(LS_LIKES, []);
     const comments = read(LS_COMMENTS, []);
-    return toPost(post, users, likes, comments);
+    return toPost(normalizePostRecord(post), users, likes, comments);
   },
 
   async fetchAllPosts() {
@@ -309,7 +306,7 @@ const localBackend = {
     const users = read(LS_USERS, []);
     const likes = normalizeLikes(read(LS_LIKES, []));
     const comments = read(LS_COMMENTS, []);
-    return posts.map((p) => toPost(p, users, likes, comments));
+    return posts.map((p) => toPost(normalizePostRecord(p), users, likes, comments));
   },
 
   async fetchRankings() {
@@ -327,7 +324,7 @@ const localBackend = {
     const users = read(LS_USERS, []);
     const likes = read(LS_LIKES, []);
     const comments = read(LS_COMMENTS, []);
-    return posts.map((p) => toPost(p, users, likes, comments));
+    return posts.map((p) => toPost(normalizePostRecord(p), users, likes, comments));
   },
 
   async fetchLikedPosts(userId) {
@@ -342,7 +339,7 @@ const localBackend = {
     const users = read(LS_USERS, []);
     const likes = read(LS_LIKES, []);
     const comments = read(LS_COMMENTS, []);
-    return posts.map((p) => toPost(p, users, likes, comments));
+    return posts.map((p) => toPost(normalizePostRecord(p), users, likes, comments));
   },
 
   async addComment(postId, userId, body) {

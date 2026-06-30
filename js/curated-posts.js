@@ -2,6 +2,15 @@ const CURATED_OWNER_ID = '00000000-0000-4000-8000-000000000099';
 
 const CURATED_POSTS = [
   {
+    id: 'curated-hoying-2018',
+    user_id: CURATED_OWNER_ID,
+    image_url: '/assets/posts/hoying-2018.jpg',
+    caption: '2018 시즌 유니폼',
+    player_name: '제러드 호잉',
+    tags: ['KBO', '한화', '2018', '사인'],
+    created_at: '2026-06-30T12:00:00.000Z',
+  },
+  {
     id: 'curated-yamamoto-back',
     user_id: CURATED_OWNER_ID,
     image_url: '/assets/posts/yamamoto-back.jpg',

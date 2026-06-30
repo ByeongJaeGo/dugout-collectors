@@ -31,4 +31,4 @@ const SITE_URL = 'https://workspace-chi-one-16.vercel.app';
  * 2) 새 프로젝트 → 사이트 URL 입력
  * 3) 설정 → Setup → Project ID 복사 → 아래에 붙여넣기
  */
-const CLARITY_PROJECT_ID = '';
+const CLARITY_PROJECT_ID = 'xf0fow53no';

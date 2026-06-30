@@ -13,3 +13,14 @@ const STORAGE_BUCKET = 'post-images';
  * https://formsubmit.co
  */
 const CONTACT_EMAIL = 'gobyjea@gmail.com';
+
+/**
+ * Google AdSense — 승인 후 값을 입력하세요.
+ * 1) https://www.google.com/adsense 가입
+ * 2) 사이트 추가 시 받은 verification 코드 → ADSENSE_VERIFICATION
+ * 3) 승인 후 발급된 ca-pub- ID → ADSENSE_CLIENT_ID
+ * 4) ads.txt에 pub- ID 등록
+ */
+const ADSENSE_CLIENT_ID = '';
+const ADSENSE_VERIFICATION = '';
+const SITE_URL = 'https://workspace-chi-one-16.vercel.app';

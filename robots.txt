@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://workspace-chi-one-16.vercel.app/sitemap.xml

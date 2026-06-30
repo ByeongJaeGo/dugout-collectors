@@ -89,6 +89,17 @@
         <button type="submit" class="search-bar__btn" aria-label="검색">🔍</button>
       </form>
       <div id="player-filter-bar" class="player-filter-bar" hidden></div>
+      <section class="site-guides" aria-label="유니폼 가이드">
+        <h2 class="site-guides__title">📚 유니폼 가이드</h2>
+        <p class="site-guides__desc">수집·보관·감별에 대한 정보 글 — Google 검색에서도 찾을 수 있습니다.</p>
+        <ul class="site-guides__list">
+          <li><a href="/guides/kbo-uniform-collecting.html">KBO 유니폼 수집 시작하기</a></li>
+          <li><a href="/guides/vintage-uniform-care.html">빈티지·사인 유니폼 보관법</a></li>
+          <li><a href="/guides/kbo-teams-jersey.html">KBO 10개 구단 유니폼 특징</a></li>
+          <li><a href="/guides/mlb-jersey-guide.html">MLB 유니폼 입문</a></li>
+          <li><a href="/guides/">전체 가이드 보기 →</a></li>
+        </ul>
+      </section>
       <div id="feed-list" class="feed-list"></div>
     </section>
 
@@ -172,6 +183,22 @@
     </section>
   </main>
 
+  <footer class="site-footer">
+    <nav class="site-footer__nav">
+      <a href="/about.html">소개</a>
+      <a href="/privacy.html">개인정보처리방침</a>
+      <a href="/terms.html">이용약관</a>
+      <a href="/guides/">가이드</a>
+      <button type="button" class="site-footer__link-btn" data-nav="inquiry">문의</button>
+    </nav>
+    <p class="site-footer__copy">© Dugout Collectors · 내가 가진 유니폼을 세상에 보여주자!</p>
+  </footer>
+
+  <div id="cookie-consent" class="cookie-consent" hidden role="dialog" aria-label="쿠키 안내">
+    <p>본 사이트는 서비스 제공 및 Google AdSense 맞춤 광고를 위해 쿠키를 사용합니다. <a href="/privacy.html">개인정보처리방침</a></p>
+    <button type="button" id="cookie-accept" class="cookie-consent__btn">동의</button>
+  </div>
+
   <div id="auth-modal" class="auth-modal" hidden aria-modal="true" role="dialog" aria-labelledby="auth-modal-title">
     <div class="auth-modal__backdrop" id="auth-modal-backdrop"></div>
     <div class="auth-modal__card">
@@ -235,6 +262,7 @@
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="js/config.js"></script>
+  <script src="js/adsense.js"></script>
   <script src="js/email-utils.js"></script>
   <script src="js/contact.js"></script>
   <script src="js/comments.js"></script>

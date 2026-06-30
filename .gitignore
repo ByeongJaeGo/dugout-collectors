@@ -13,3 +13,4 @@ dist/
 # Secrets (use js/config.js placeholders in repo)
 .env
 .env.*
+.vercel

@@ -1,6 +1,6 @@
 const COLLECTOR_MIN_POSTS = 10;
 
-const BADGE_ORDER = ['weekly_king', 'daily_pick', 'collector'];
+const BADGE_ORDER = ['weekly_king', 'daily_pick', 'first_discoverer', 'collector'];
 
 function sortBadges(badges) {
   return [...(badges || [])].sort(
@@ -38,6 +38,11 @@ function buildBadgeContext(posts, rankings) {
   if (weeklyTop?.user_id) {
     addBadge(weeklyTop.user_id, { id: 'weekly_king', emoji: '👑', label: '이 주의 유니폼왕' });
   }
+
+  const discovererIds = getFirstDiscovererUserIds(posts);
+  discovererIds.forEach((userId) => {
+    addBadge(userId, { id: 'first_discoverer', emoji: '🔍', label: '첫 발견자' });
+  });
 
   return {
     userBadges,

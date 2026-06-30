@@ -3,6 +3,8 @@ let currentUser = null;
 let currentProfile = null;
 let pendingView = null;
 let searchQuery = '';
+let teamFilter = '';
+let playerFilter = '';
 let notificationPollTimer = null;
 
 const NOTIFICATION_POLL_MS = 20000;
@@ -27,6 +29,7 @@ function navigateTo(view) {
   if (view === 'my-posts') loadMyPosts();
   if (view === 'my-likes') loadMyLikes();
   if (view === 'upload') updateUploadView();
+  if (view === 'inquiry') loadInquiryBoard();
   showView(view);
 }
 
@@ -38,6 +41,7 @@ function goAfterAuth(defaultView) {
   if (dest === 'my-posts') loadMyPosts();
   if (dest === 'my-likes') loadMyLikes();
   if (dest === 'upload') updateUploadView();
+  if (dest === 'inquiry') loadInquiryBoard();
   showView(dest);
 }
 
@@ -82,6 +86,52 @@ async function refreshSession() {
     updateNotificationBadge(0, { animate: false });
   }
   updateUploadView();
+  updateInquiryView(Boolean(currentUser));
+}
+
+async function loadInquiryBoard() {
+  updateInquiryView(Boolean(currentUser));
+  const container = document.getElementById('inquiry-list');
+  if (!container) return;
+
+  container.innerHTML = '<p class="feed-list__status">불러오는 중…</p>';
+
+  try {
+    const posts = await backend.fetchInquiryPosts();
+    renderInquiryList(container, posts);
+  } catch (err) {
+    container.innerHTML = `<p class="empty-state error">${escapeHtml(err.message)}</p>`;
+  }
+}
+
+async function handleInquirySubmit(e) {
+  e.preventDefault();
+
+  if (!currentUser) {
+    openAuthModal('login', 'inquiry');
+    return;
+  }
+
+  const form = e.target;
+  const title = form.title.value;
+  const body = form.body.value;
+
+  setFormLoading(form, true, '등록 중…');
+
+  try {
+    const notifyMeta = {
+      name: currentProfile?.nickname || currentUser.email.split('@')[0] || '회원',
+      email: currentUser.email,
+    };
+    await backend.createInquiryPost(currentUser.id, { title, body }, notifyMeta);
+    form.reset();
+    showToast(CONTACT_SUCCESS_MESSAGE, 'success');
+    await loadInquiryBoard();
+  } catch (err) {
+    showToast(err.message, 'error');
+  } finally {
+    setFormLoading(form, false);
+  }
 }
 
 async function refreshLikesBannerCount() {
@@ -97,7 +147,8 @@ async function refreshLikesBannerCount() {
 async function init() {
   bindEvents();
   initAuthModal();
-  initContactModal();
+  initTeamSelect();
+  initTeamCategoryBar();
   initNotificationPanel({
     onToggle: () => refreshNotifications(),
     onMarkRead: () => handleMarkNotificationsRead(),
@@ -121,7 +172,7 @@ async function init() {
       showView('feed');
     }
     if (currentUser) hideAuthModal();
-    await loadFeed();
+    await reloadCurrentView();
   });
 }
 
@@ -143,6 +194,28 @@ function bindEvents() {
     bindEvents._searchTimer = setTimeout(() => loadFeed(), 250);
   });
 
+  document.getElementById('team-category-bar')?.addEventListener('click', (e) => {
+    const btn = e.target.closest('.team-chip[data-team]');
+    if (!btn) return;
+    teamFilter = btn.dataset.team || '';
+    playerFilter = '';
+    renderTeamCategoryBar(teamFilter);
+    loadFeed();
+  });
+
+  document.getElementById('feed-list')?.addEventListener('click', (e) => {
+    const link = e.target.closest('.post-card__player-link');
+    if (!link) return;
+    e.preventDefault();
+    applyPlayerFilter(link.dataset.playerKey, link.dataset.team);
+  });
+
+  document.getElementById('player-filter-bar')?.addEventListener('click', (e) => {
+    if (e.target.closest('[data-clear-player-filter]')) {
+      clearPlayerFilter();
+    }
+  });
+
   document.querySelectorAll('[data-nav]').forEach((btn) => {
     btn.addEventListener('click', (e) => {
       e.preventDefault();
@@ -154,21 +227,14 @@ function bindEvents() {
     openAuthModal('login', 'upload');
   });
 
-  document.getElementById('feed-signup-btn')?.addEventListener('click', () => {
-    if (currentUser) return;
-    openAuthModal('signup');
-  });
-
-  document.getElementById('guest-signup-btn')?.addEventListener('click', () => {
-    openAuthModal('signup');
-  });
-
   document.getElementById('guest-login-btn')?.addEventListener('click', () => {
     openAuthModal('login');
   });
 
-  document.getElementById('contact-btn')?.addEventListener('click', openContactModal);
-  document.getElementById('contact-form')?.addEventListener('submit', handleContact);
+  document.getElementById('inquiry-form')?.addEventListener('submit', handleInquirySubmit);
+  document.getElementById('inquiry-go-login')?.addEventListener('click', () => {
+    openAuthModal('login', 'inquiry');
+  });
 
   const fileInput = document.getElementById('photo-input');
   fileInput.addEventListener('change', () => {
@@ -178,39 +244,6 @@ function bindEvents() {
       document.getElementById('photo-placeholder')
     );
   });
-}
-
-function openContactModal() {
-  const prefill = {};
-  if (currentUser?.email) {
-    prefill.email = currentUser.email;
-    prefill.name = currentProfile?.nickname || currentUser.email.split('@')[0] || '';
-  }
-  showContactModal(prefill);
-}
-
-async function handleContact(e) {
-  e.preventDefault();
-  const form = e.target;
-  const honey = document.getElementById('contact-honey');
-  if (honey?.value) return;
-
-  const name = form.name.value;
-  const email = form.email.value;
-  const subject = form.subject.value;
-  const message = form.message.value;
-
-  setFormLoading(form, true, '전송 중…');
-  try {
-    await submitContactInquiry({ name, email, subject, message });
-    form.reset();
-    hideContactModal();
-    showToast(CONTACT_SUCCESS_MESSAGE, 'success');
-  } catch (err) {
-    showToast(err.message, 'error');
-  } finally {
-    setFormLoading(form, false);
-  }
 }
 
 async function handleSignup(e) {
@@ -280,33 +313,43 @@ async function handleUpload(e) {
   }
 
   const form = e.target;
-  const files = form.photo.files;
+  const files = [...form.photo.files];
   const caption = form.caption.value;
   const playerName = form.player_name.value;
   const team = form.team.value;
-  const seasonYear = form.season_year.value;
-  const kitType = form.kit_type.value;
   const tagsRaw = form.tags.value;
 
-  if (!files?.length) {
-    showToast('사진을 1장 이상 선택해 주세요.', 'error');
+  if (!files.length) {
+    showToast('사진을 선택해 주세요.', 'error');
     return;
   }
 
   setFormLoading(form, true, '업로드 중…');
 
   try {
-    await backend.uploadPost(currentUser.id, files, {
+    const beforePosts = await backend.fetchAllPosts();
+    const isFirstDiscoverer =
+      playerName.trim() && willBeFirstDiscoverer(beforePosts, team, playerName);
+
+    const result = await backend.uploadPost(currentUser.id, files, {
       caption,
       playerName,
       team,
-      seasonYear,
-      kitType,
       tags: parseTagsInput(tagsRaw),
     });
-    showToast('업로드 완료!', 'success');
+
+    if (result?.isFirstDiscoverer || isFirstDiscoverer) {
+      showToast('🔍 첫 발견자 칭호를 획득했습니다!', 'success');
+    } else {
+      showToast('업로드 완료!', 'success');
+    }
     form.reset();
-    previewImages(null, document.getElementById('photo-preview-list'), document.getElementById('photo-placeholder'));
+    initTeamSelect();
+    previewImages(
+      null,
+      document.getElementById('photo-preview-list'),
+      document.getElementById('photo-placeholder')
+    );
     await loadFeed();
     showView('feed');
   } catch (err) {
@@ -330,10 +373,11 @@ function renderPostList(container, posts, emptyMessage) {
 }
 
 async function syncBadgeContext() {
-  const [allPosts, rankings] = await Promise.all([
+  const [rawPosts, rankings] = await Promise.all([
     backend.fetchAllPosts(),
     backend.fetchRankings().catch(() => ({ daily: [], weekly: [] })),
   ]);
+  const allPosts = enrichPostsWithTeamStats(rawPosts);
   const ctx = buildBadgeContext(allPosts, rankings);
   setBadgeContext(ctx);
   if (currentUser) {
@@ -354,6 +398,7 @@ async function reloadCurrentView() {
   if (view === 'feed') await loadFeed();
   else if (view === 'my-posts') await loadMyPosts();
   else if (view === 'my-likes') await loadMyLikes();
+  else if (view === 'inquiry') await loadInquiryBoard();
 }
 
 async function notifyPostOwner(postId, type, commentBody) {
@@ -406,18 +451,23 @@ async function handleNotificationClick(postId) {
   requestAnimationFrame(() => scrollToPost(postId));
 }
 
-async function handleComment(postId, body, form) {
+async function handleComment(postId, body, form, parentId = null) {
   if (!currentUser) {
     openAuthModal('login');
     return;
   }
 
-  const btn = form.querySelector('.comment-form__btn');
+  const btn = form.querySelector('.comment-form__btn, .comment-reply-form__btn');
   btn.disabled = true;
   try {
-    await backend.addComment(postId, currentUser.id, body);
-    await notifyPostOwner(postId, 'comment', body.trim());
+    await backend.addComment(postId, currentUser.id, body, parentId || null);
+    if (!parentId) {
+      await notifyPostOwner(postId, 'comment', body.trim());
+    }
     form.reset();
+    if (parentId) {
+      form.hidden = true;
+    }
     await reloadCurrentView();
   } catch (err) {
     showToast(err.message, 'error');
@@ -435,6 +485,27 @@ async function loadRankings() {
   }
 }
 
+function initTeamCategoryBar() {
+  renderTeamCategoryBar(teamFilter);
+}
+
+function applyPlayerFilter(playerKey, teamId) {
+  if (!playerKey) return;
+  playerFilter = playerKey;
+  if (teamId) {
+    teamFilter = teamId;
+    renderTeamCategoryBar(teamFilter);
+  }
+  showView('feed');
+  loadFeed();
+  document.getElementById('player-filter-bar')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+function clearPlayerFilter() {
+  playerFilter = '';
+  loadFeed();
+}
+
 async function loadFeed() {
   const container = document.getElementById('feed-list');
   showListLoading(container);
@@ -442,11 +513,18 @@ async function loadFeed() {
   try {
     const { allPosts, rankings } = await syncBadgeContext();
     renderRankings(rankings, getBadgeContext());
+    renderTodayRegPanel(allPosts);
 
-    const posts = filterPostsByQuery(allPosts, searchQuery);
-    const emptyMessage = searchQuery.trim()
-      ? `"${escapeHtml(searchQuery.trim())}" 검색 결과가 없습니다.`
-      : '아직 올라온 유니폼이 없습니다. 첫 번째로 올려 보세요!';
+    let posts = filterPostsByTeam(allPosts, teamFilter);
+    posts = filterPostsByPlayer(posts, playerFilter);
+    posts = filterPostsByQuery(posts, searchQuery);
+    renderPlayerFilterBar(playerFilter, allPosts);
+    const emptyMessage = buildFeedEmptyMessage(
+      searchQuery,
+      teamFilter,
+      playerFilter,
+      allPosts
+    );
 
     if (currentUser) {
       const likedCount = allPosts.filter((p) => p.liked_by?.includes(currentUser.id)).length;

@@ -17,11 +17,9 @@ create table if not exists public.posts (
   user_id uuid not null references public.profiles (id) on delete cascade,
   image_url text not null,
   image_urls text[] not null default '{}',
+  team text not null default '',
   caption text not null default '',
   player_name text not null default '',
-  team text not null default '',
-  season_year integer,
-  kit_type text not null default '',
   tags text[] not null default '{}',
   created_at timestamptz not null default now()
 );
@@ -44,26 +42,23 @@ create index if not exists likes_post_id_idx on public.likes (post_id);
 -- 기존 DB에 posts.player_name / posts.tags 없으면 실행:
 -- alter table public.posts add column if not exists player_name text not null default '';
 -- alter table public.posts add column if not exists tags text[] not null default '{}';
-
--- 기존 DB에 posts.image_urls 없으면 실행:
 -- alter table public.posts add column if not exists image_urls text[] not null default '{}';
--- update public.posts set image_urls = array[image_url] where coalesce(array_length(image_urls, 1), 0) = 0 and image_url <> '';
-
--- 기존 DB에 유니폼 정보 필드 없으면 실행:
 -- alter table public.posts add column if not exists team text not null default '';
--- alter table public.posts add column if not exists season_year integer;
--- alter table public.posts add column if not exists kit_type text not null default '';
 
 -- comments
 create table if not exists public.comments (
   id uuid primary key default gen_random_uuid(),
   post_id uuid not null references public.posts (id) on delete cascade,
   user_id uuid not null references public.profiles (id) on delete cascade,
+  parent_id uuid references public.comments (id) on delete cascade,
   body text not null,
   created_at timestamptz not null default now()
 );
 
 create index if not exists comments_post_id_idx on public.comments (post_id);
+create index if not exists comments_parent_id_idx on public.comments (parent_id);
+
+-- alter table public.comments add column if not exists parent_id uuid references public.comments (id) on delete cascade;
 
 -- RLS
 alter table public.profiles enable row level security;

@@ -1,15 +1,8 @@
 {
-  "$schema": "https://openapi.vercel.sh/vercel.json",
-  "framework": null,
-  "buildCommand": "npm run build",
-  "outputDirectory": "dist",
-  "cleanUrls": true,
-  "headers": [
-    {
-      "source": "/assets/(.*)",
-      "headers": [
-        { "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }
-      ]
-    }
-  ]
+  "version": 2,
+  "name": "dugout-collectors",
+  "buildCommand": "",
+  "devCommand": "npm start",
+  "installCommand": "",
+  "outputDirectory": "."
 }

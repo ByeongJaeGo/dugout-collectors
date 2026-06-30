@@ -1,69 +1,7 @@
 const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
 const MAX_SIZE_MB = 5;
-const MAX_PHOTOS = 10;
 const MAX_TAGS = 10;
 const MAX_TAG_LEN = 24;
-
-function getPostImages(post) {
-  if (Array.isArray(post?.image_urls) && post.image_urls.length > 0) {
-    return post.image_urls.filter(Boolean);
-  }
-  if (post?.image_url) return [post.image_url];
-  return [];
-}
-
-function normalizePostRecord(post) {
-  const image_urls = getPostImages(post);
-  return {
-    ...post,
-    image_urls,
-    image_url: image_urls[0] || post?.image_url || '',
-  };
-}
-
-function toFileList(files) {
-  if (!files) return [];
-  return Array.from(files);
-}
-
-function validateImageFiles(files) {
-  const list = toFileList(files);
-  if (!list.length) throw new Error('사진을 1장 이상 선택해 주세요.');
-  if (list.length > MAX_PHOTOS) {
-    throw new Error(`사진은 최대 ${MAX_PHOTOS}장까지 올릴 수 있습니다.`);
-  }
-  for (const file of list) {
-    if (!ALLOWED_TYPES.includes(file.type)) {
-      throw new Error('JPG, PNG, WEBP, GIF 형식만 업로드할 수 있습니다.');
-    }
-    if (file.size > MAX_SIZE_MB * 1024 * 1024) {
-      throw new Error(`각 파일 크기는 ${MAX_SIZE_MB}MB 이하여야 합니다.`);
-    }
-  }
-  return list;
-}
-
-async function uploadImageFiles(supabase, userId, files) {
-  const list = validateImageFiles(files);
-  const urls = [];
-
-  for (let i = 0; i < list.length; i++) {
-    const file = list[i];
-    const ext = file.name.split('.').pop()?.toLowerCase() || 'jpg';
-    const path = `${userId}/${Date.now()}-${i}.${ext}`;
-
-    const { error: uploadError } = await supabase.storage
-      .from(STORAGE_BUCKET)
-      .upload(path, file, { cacheControl: '3600', upsert: false });
-
-    if (uploadError) throw new Error(`업로드 실패: ${uploadError.message}`);
-
-    const { data: urlData } = supabase.storage.from(STORAGE_BUCKET).getPublicUrl(path);
-    urls.push(urlData.publicUrl);
-  }
-
-  return urls;
-}
 
 function parseTagsInput(raw) {
   if (!raw || !String(raw).trim()) return [];
@@ -86,72 +24,89 @@ function parseTagsInput(raw) {
   return result.slice(0, MAX_TAGS);
 }
 
-function normalizePostFields({
-  caption,
-  playerName = '',
-  tags = [],
-  team = '',
-  seasonYear = '',
-  kitType = '',
-}) {
+function normalizePostFields({ caption, playerName = '', team = '', tags = [] }) {
   const trimmedCaption = String(caption || '').trim();
   const trimmedPlayer = String(playerName || '').trim().slice(0, 40);
-  const trimmedTeam = String(team || '').trim().slice(0, 40);
   const normalizedTags = Array.isArray(tags) ? tags : parseTagsInput(tags);
+  const teamId = normalizeTeamId(team);
 
   if (!trimmedCaption) throw new Error('설명을 입력해 주세요.');
+  if (!teamId) throw new Error('팀을 선택해 주세요.');
   if (trimmedPlayer.length > 0 && trimmedPlayer.length < 2) {
     throw new Error('선수 이름은 2자 이상 입력해 주세요.');
   }
-  if (trimmedTeam.length > 0 && trimmedTeam.length < 2) {
-    throw new Error('팀 이름은 2자 이상 입력해 주세요.');
-  }
-
-  let season_year = null;
-  const yearStr = String(seasonYear ?? '').trim();
-  if (yearStr) {
-    const y = Number.parseInt(yearStr, 10);
-    if (!Number.isInteger(y) || y < 1900 || y > 2100) {
-      throw new Error('연도는 1900~2100 사이 숫자로 입력해 주세요.');
-    }
-    season_year = y;
-  }
-
-  const kit = String(kitType || '').trim();
-  const kit_type = kit === 'home' || kit === 'away' ? kit : '';
 
   return {
     caption: trimmedCaption,
     player_name: trimmedPlayer,
-    team: trimmedTeam,
-    season_year,
-    kit_type,
+    team: teamId,
     tags: normalizedTags,
   };
 }
 
+function getPostImages(post) {
+  if (Array.isArray(post?.image_urls) && post.image_urls.length) {
+    return post.image_urls.filter(Boolean);
+  }
+  if (post?.image_url) return [post.image_url];
+  return [];
+}
+
+function buildPostImageFields(imageUrls) {
+  const urls = (imageUrls || []).filter(Boolean);
+  if (!urls.length) throw new Error('사진을 선택해 주세요.');
+  return { image_url: urls[0], image_urls: urls };
+}
+
+async function uploadImages(supabase, userId, files) {
+  const fileList = (Array.isArray(files) ? files : [files]).filter(Boolean);
+  if (!fileList.length) throw new Error('사진을 선택해 주세요.');
+
+  const urls = [];
+  for (const file of fileList) {
+    if (!ALLOWED_TYPES.includes(file.type)) {
+      throw new Error('JPG, PNG, WEBP, GIF 형식만 업로드할 수 있습니다.');
+    }
+    if (file.size > MAX_SIZE_MB * 1024 * 1024) {
+      throw new Error(`파일 크기는 ${MAX_SIZE_MB}MB 이하여야 합니다.`);
+    }
+
+    const ext = file.name.split('.').pop()?.toLowerCase() || 'jpg';
+    const path = `${userId}/${Date.now()}-${urls.length}.${ext}`;
+
+    const { error: uploadError } = await supabase.storage
+      .from(STORAGE_BUCKET)
+      .upload(path, file, { cacheControl: '3600', upsert: false });
+
+    if (uploadError) throw new Error(`업로드 실패: ${uploadError.message}`);
+
+    const { data: urlData } = supabase.storage.from(STORAGE_BUCKET).getPublicUrl(path);
+    urls.push(urlData.publicUrl);
+  }
+
+  return buildPostImageFields(urls);
+}
+
 async function uploadPost(supabase, userId, files, postFields) {
-  const { caption, player_name, team, season_year, kit_type, tags } = normalizePostFields(postFields);
-  const image_urls = await uploadImageFiles(supabase, userId, files);
+  const { caption, player_name, team, tags } = normalizePostFields(postFields);
+  const { image_url, image_urls } = await uploadImages(supabase, userId, files);
 
   const { data, error } = await supabase
     .from('posts')
     .insert({
       user_id: userId,
-      image_url: image_urls[0],
+      image_url,
       image_urls,
       caption,
       player_name,
       team,
-      season_year,
-      kit_type,
       tags,
     })
     .select('*, profiles(nickname)')
     .single();
 
   if (error) throw new Error(error.message);
-  return normalizePostRecord(data);
+  return data;
 }
 
 async function fetchPostsWithMeta(supabase, postsQuery) {
@@ -175,19 +130,18 @@ async function fetchPostsWithMeta(supabase, postsQuery) {
   if (commentsError) throw new Error(commentsError.message);
 
   return posts.map((post) =>
-    attachComments(enrichPost(normalizePostRecord(post), likes), comments || [])
+    attachComments(enrichPost(post, likes), comments || [])
   );
 }
 
 async function fetchAllPosts(supabase) {
-  const posts = await fetchPostsWithMeta(
+  return fetchPostsWithMeta(
     supabase,
     supabase
       .from('posts')
       .select('*, profiles(nickname)')
       .order('created_at', { ascending: false })
   );
-  return mergeCuratedPosts(posts);
 }
 
 async function fetchMyPosts(supabase, userId) {
@@ -243,12 +197,11 @@ async function fetchRankings(supabase) {
   if (likesError) throw new Error(likesError.message);
   if (commentsError) throw new Error(commentsError.message);
 
-  const mergedPosts = mergeCuratedPosts(posts || []);
   const users = [...new Map(
-    mergedPosts.map((p) => [p.user_id, { id: p.user_id, nickname: p.profiles?.nickname || '익명' }])
+    (posts || []).map((p) => [p.user_id, { id: p.user_id, nickname: p.profiles?.nickname || '익명' }])
   ).values()];
 
-  return computeRankings(mergedPosts, users, likes || [], comments || []);
+  return computeRankings(posts || [], users, likes || [], comments || []);
 }
 
 async function toggleLike(supabase, postId, userId, alreadyLiked) {

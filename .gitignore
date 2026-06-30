@@ -8,10 +8,11 @@ Thumbs.db
 # Local tools
 .playwright-mcp/
 node_modules/
-dist/
+.vercel/
+
+# Source photos (catalog copies live in assets/)
+KakaoTalk_*.jpg
 
 # Secrets (use js/config.js placeholders in repo)
 .env
 .env.*
-.vercel
-.netlify/

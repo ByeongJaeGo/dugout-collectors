@@ -6,11 +6,15 @@ const LS_NOTIFICATIONS = 'dugout_notifications';
 const LS_SESSION = 'dugout_session';
 const LS_SEEDED = 'dugout_seeded';
 const DEMO_IMAGE = '/assets/demo-uniform.svg';
-const SEED_VERSION = '8';
+const SEED_VERSION = '7';
 const BOT_ID = '00000000-0000-4000-8000-000000000001';
 const BOT2_ID = '00000000-0000-4000-8000-000000000002';
 const BOT3_ID = '00000000-0000-4000-8000-000000000003';
 const BOT4_ID = '00000000-0000-4000-8000-000000000004';
+const BOT5_ID = '00000000-0000-4000-8000-000000000005';
+const BOT6_ID = '00000000-0000-4000-8000-000000000006';
+const BOT7_ID = '00000000-0000-4000-8000-000000000007';
+const BOT8_ID = '00000000-0000-4000-8000-000000000008';
 
 function uid() {
   return crypto.randomUUID();
@@ -99,7 +103,6 @@ function seedDemoData() {
   const now = new Date();
   const hoursAgo = (h) => new Date(now.getTime() - h * 60 * 60 * 1000).toISOString();
 
-  const post1 = uid();
   const post2 = uid();
   const post3 = uid();
 
@@ -112,26 +115,12 @@ function seedDemoData() {
 
   write(LS_POSTS, [
     {
-      id: post1,
-      user_id: BOT_ID,
-      image_url: DEMO_IMAGE,
-      caption: '1980년대 빈티지 야구 유니폼 · 데모 샘플',
-      player_name: '박찬호',
-      team: 'KIA 타이거즈',
-      season_year: 1996,
-      kit_type: 'home',
-      tags: ['KBO', '빈티지', '90년대'],
-      created_at: hoursAgo(48),
-    },
-    {
       id: post2,
       user_id: BOT2_ID,
       image_url: DEMO_IMAGE,
       caption: '1995 KBO 올스타 레플리카 · 한정판',
       player_name: '이종범',
-      team: '삼성 라이온즈',
-      season_year: 1995,
-      kit_type: 'away',
+      team: 'lg',
       tags: ['KBO', '올스타', '레플리카'],
       created_at: hoursAgo(24),
     },
@@ -141,60 +130,316 @@ function seedDemoData() {
       image_url: DEMO_IMAGE,
       caption: 'MLB 클래식 로드 유니폼 · 희귀 컬러',
       player_name: '오타니',
-      team: 'LA 에인절스',
-      season_year: 2023,
-      kit_type: 'home',
+      team: 'mlb',
       tags: ['MLB', '레플리카', '에인절스'],
       created_at: hoursAgo(6),
     },
   ]);
 
   write(LS_LIKES, [
-    { post_id: post1, user_id: BOT2_ID, created_at: hoursAgo(2) },
-    { post_id: post1, user_id: BOT3_ID, created_at: hoursAgo(1) },
-    { post_id: post1, user_id: BOT4_ID, created_at: hoursAgo(0.5) },
-    { post_id: post2, user_id: BOT_ID, created_at: hoursAgo(3) },
-    { post_id: post2, user_id: BOT3_ID, created_at: hoursAgo(1) },
-    { post_id: post3, user_id: BOT_ID, created_at: hoursAgo(2) },
-    { post_id: post3, user_id: BOT2_ID, created_at: hoursAgo(1) },
-    { post_id: post3, user_id: BOT4_ID, created_at: hoursAgo(0.3) },
+    { post_id: post2, user_id: BOT4_ID, created_at: hoursAgo(1) },
+    { post_id: post3, user_id: BOT4_ID, created_at: hoursAgo(0.5) },
   ]);
 
-  write(LS_COMMENTS, [
-    { id: uid(), post_id: post1, user_id: BOT2_ID, body: '레전드 유니폼이네요!', created_at: hoursAgo(2) },
-    { id: uid(), post_id: post3, user_id: BOT4_ID, body: '색감 미쳤다', created_at: hoursAgo(1) },
-    { id: uid(), post_id: post3, user_id: BOT_ID, body: '어디서 구하셨어요?', created_at: hoursAgo(0.5) },
-  ]);
+  write(LS_COMMENTS, []);
 
-  write(LS_NOTIFICATIONS, [
-    {
-      id: uid(),
-      user_id: BOT_ID,
-      type: 'like',
-      actor_id: BOT2_ID,
-      actor_nickname: '유니폼수집가',
-      post_id: post1,
-      post_caption: '1980년대 빈티지 야구 유니폼 · 데모 샘플',
-      comment_body: null,
-      read: false,
-      created_at: hoursAgo(0.4),
-    },
-    {
-      id: uid(),
-      user_id: BOT_ID,
-      type: 'comment',
-      actor_id: BOT4_ID,
-      actor_nickname: 'KBO매니아',
-      post_id: post1,
-      post_caption: '1980년대 빈티지 야구 유니폼 · 데모 샘플',
-      comment_body: '진짜 레전드네요!',
-      read: false,
-      created_at: hoursAgo(0.2),
-    },
-  ]);
+  write(LS_NOTIFICATIONS, []);
 
   localStorage.setItem(LS_SEEDED, '1');
   localStorage.setItem('dugout_seed_version', SEED_VERSION);
+}
+
+const FEATURED_POSTS_KEY = 'dugout_featured_yamamoto';
+const CATALOG_POSTS_KEY = 'dugout_catalog_v5';
+const CATALOG_ENGAGEMENT_KEY = 'dugout_catalog_engagement_v1';
+const POST_TEAMS_KEY = 'dugout_post_teams_v1';
+const PURGED_AUTHORS_KEY = 'dugout_purged_authors_v1';
+const PURGED_NICKNAMES = ['DugoutBot', '고푸리아'];
+
+function purgePostsByNicknames() {
+  if (localStorage.getItem(PURGED_AUTHORS_KEY)) return;
+
+  const users = read(LS_USERS, []);
+  const purgeUserIds = new Set(
+    users.filter((u) => PURGED_NICKNAMES.includes(u.nickname)).map((u) => u.id)
+  );
+
+  const posts = read(LS_POSTS, []);
+  const removedPostIds = new Set(
+    posts.filter((p) => purgeUserIds.has(p.user_id)).map((p) => p.id)
+  );
+
+  if (removedPostIds.size) {
+    write(
+      LS_POSTS,
+      posts.filter((p) => !purgeUserIds.has(p.user_id))
+    );
+    write(
+      LS_LIKES,
+      read(LS_LIKES, []).filter((l) => !removedPostIds.has(l.post_id))
+    );
+    write(
+      LS_COMMENTS,
+      read(LS_COMMENTS, []).filter((c) => !removedPostIds.has(c.post_id))
+    );
+    write(
+      LS_NOTIFICATIONS,
+      read(LS_NOTIFICATIONS, []).filter((n) => !removedPostIds.has(n.post_id))
+    );
+  }
+
+  localStorage.setItem(PURGED_AUTHORS_KEY, 'done');
+}
+
+function ensurePostTeams() {
+  if (localStorage.getItem(POST_TEAMS_KEY)) return;
+
+  const posts = read(LS_POSTS, []);
+  let changed = false;
+  const next = posts.map((post) => {
+    if (normalizeTeamId(post.team)) return post;
+    const team = inferTeamForPost(post);
+    if (!team) return post;
+    changed = true;
+    return { ...post, team };
+  });
+
+  if (changed) write(LS_POSTS, next);
+  localStorage.setItem(POST_TEAMS_KEY, 'done');
+}
+
+function ensureCatalogUsers() {
+  const users = read(LS_USERS, []);
+  const catalogUsers = [
+    { id: BOT5_ID, email: 'gobyeongkwon@naver.com', nickname: '고병권' },
+    { id: BOT6_ID, email: 'chiro@naver.com', nickname: '치로로' },
+    { id: BOT7_ID, email: 'daechung@naver.com', nickname: '대충머충' },
+    { id: BOT8_ID, email: 'cheonanhanwha1@naver.com', nickname: '천안 한화팬1' },
+  ];
+
+  let changed = false;
+  const next = [...users];
+
+  for (const user of catalogUsers) {
+    const existing = next.find((u) => u.id === user.id);
+    if (!existing) {
+      next.push(user);
+      changed = true;
+    } else if (existing.nickname !== user.nickname || existing.email !== user.email) {
+      Object.assign(existing, user);
+      changed = true;
+    }
+  }
+
+  if (changed) write(LS_USERS, next);
+  return next;
+}
+
+function assignCatalogAuthors(posts) {
+  return posts.map((post) => {
+    if (post.player_name === '야마모토 요시노부') {
+      return { ...post, user_id: BOT5_ID };
+    }
+    if (post.player_name === '다르비슈 유') {
+      return { ...post, user_id: BOT6_ID };
+    }
+    if (post.player_name === '채은성') {
+      return { ...post, user_id: BOT7_ID };
+    }
+    if (post.player_name === '제러드 호잉') {
+      return { ...post, user_id: BOT8_ID };
+    }
+    return post;
+  });
+}
+
+function mergePlayerPosts(posts, playerName, imageUrls, patch) {
+  const matching = posts.filter((p) => p.player_name === playerName);
+  if (matching.length >= 2) {
+    const sorted = [...matching].sort(
+      (a, b) => new Date(b.created_at) - new Date(a.created_at)
+    );
+    const merged = {
+      ...sorted[0],
+      ...patch,
+      image_url: imageUrls[0],
+      image_urls: imageUrls,
+    };
+    return [merged, ...posts.filter((p) => p.player_name !== playerName)];
+  }
+  if (matching.length === 1) {
+    return posts.map((p) =>
+      p.player_name === playerName
+        ? { ...p, ...patch, image_url: imageUrls[0], image_urls: imageUrls }
+        : p
+    );
+  }
+  if (!matching.length) {
+    return [
+      {
+        id: uid(),
+        user_id: BOT5_ID,
+        image_url: imageUrls[0],
+        image_urls: imageUrls,
+        created_at: new Date().toISOString(),
+        ...patch,
+      },
+      ...posts,
+    ];
+  }
+  return posts;
+}
+
+function ensureCatalogPosts() {
+  const users = ensureCatalogUsers();
+  if (!users.length) return;
+
+  let posts = read(LS_POSTS, []);
+  const alreadyDone = localStorage.getItem(CATALOG_POSTS_KEY) === 'done';
+
+  if (!alreadyDone) {
+    posts = mergePlayerPosts(posts, '야마모토 요시노부', [
+      '/assets/yamamoto-front.jpg',
+      '/assets/yamamoto-back.jpg',
+    ], {
+      user_id: BOT5_ID,
+      team: 'mlb',
+      caption: '2025 월드시리즈 MVP',
+      player_name: '야마모토 요시노부',
+      tags: ['MLB', 'LA다저스', '월드시리즈', 'MVP'],
+    });
+
+    if (!posts.some((p) => p.player_name === '다르비슈 유')) {
+      posts.unshift({
+        id: uid(),
+        user_id: BOT6_ID,
+        image_url: '/assets/darvish-front.jpg',
+        image_urls: ['/assets/darvish-front.jpg', '/assets/darvish-back.jpg'],
+        caption: '샌디에고 파드리스 유니폼',
+        player_name: '다르비슈 유',
+        team: 'mlb',
+        tags: ['MLB', '샌디에고', '파드리스'],
+        created_at: new Date().toISOString(),
+      });
+    } else {
+      posts = mergePlayerPosts(posts, '다르비슈 유', [
+        '/assets/darvish-front.jpg',
+        '/assets/darvish-back.jpg',
+      ], {
+        user_id: BOT6_ID,
+        team: 'mlb',
+        caption: '샌디에고 파드리스 유니폼',
+        player_name: '다르비슈 유',
+        tags: ['MLB', '샌디에고', '파드리스'],
+      });
+    }
+  }
+
+  posts = mergePlayerPosts(posts, '채은성', [
+    '/assets/chae-front.jpg',
+    '/assets/chae-back.jpg',
+  ], {
+    user_id: BOT7_ID,
+    team: 'hanwha',
+    caption: '권광민과 김태연의 사인이 적혀있다',
+    player_name: '채은성',
+    tags: ['KBO', '한화이글스'],
+  });
+
+  posts = mergePlayerPosts(posts, '제러드 호잉', ['/assets/hoying-back.jpg'], {
+    user_id: BOT8_ID,
+    team: 'hanwha',
+    caption: '2018 시즌 유니폼',
+    player_name: '제러드 호잉',
+    tags: ['KBO', '한화이글스', '2018'],
+  });
+
+  posts = assignCatalogAuthors(posts);
+  write(LS_POSTS, posts);
+  localStorage.setItem(CATALOG_POSTS_KEY, 'done');
+  localStorage.removeItem(FEATURED_POSTS_KEY);
+}
+
+function replacePostLikes(likes, postId, likerIds, hoursAgo) {
+  const next = likes.filter((l) => l.post_id !== postId);
+  likerIds.forEach((userId, i) => {
+    next.push({
+      post_id: postId,
+      user_id: userId,
+      created_at: hoursAgo(2 - i * 0.4),
+    });
+  });
+  return next;
+}
+
+function ensureCatalogEngagement() {
+  if (localStorage.getItem(CATALOG_ENGAGEMENT_KEY)) return;
+
+  const posts = read(LS_POSTS, []);
+  if (!posts.length) return;
+
+  let likes = read(LS_LIKES, []);
+  let comments = read(LS_COMMENTS, []);
+  const now = new Date();
+  const hoursAgo = (h) => new Date(now.getTime() - h * 60 * 60 * 1000).toISOString();
+
+  const likesByPlayer = {
+    '제러드 호잉': [BOT2_ID, BOT3_ID],
+    '야마모토 요시노부': [BOT2_ID, BOT3_ID, BOT4_ID],
+  };
+
+  const likerPool = [BOT_ID, BOT2_ID, BOT3_ID, BOT4_ID, BOT5_ID, BOT6_ID, BOT7_ID, BOT8_ID];
+  let poolIdx = 0;
+
+  function pickLikers(post, count) {
+    const picked = [];
+    const used = new Set([post.user_id]);
+    let guard = 0;
+    while (picked.length < count && guard < likerPool.length * 2) {
+      const candidate = likerPool[poolIdx % likerPool.length];
+      poolIdx += 1;
+      guard += 1;
+      if (!used.has(candidate)) {
+        picked.push(candidate);
+        used.add(candidate);
+      }
+    }
+    return picked;
+  }
+
+  posts.forEach((post) => {
+    const configured = likesByPlayer[post.player_name];
+    const likerIds = configured
+      ? configured.filter((id) => id !== post.user_id)
+      : pickLikers(post, 1);
+    likes = replacePostLikes(likes, post.id, likerIds, hoursAgo);
+  });
+
+  const yamamoto = posts.find((p) => p.player_name === '야마모토 요시노부');
+  if (
+    yamamoto &&
+    !comments.some((c) => c.post_id === yamamoto.id && c.body === '이거 어케사요?')
+  ) {
+    comments.push({
+      id: uid(),
+      post_id: yamamoto.id,
+      user_id: BOT3_ID,
+      body: '이거 어케사요?',
+      created_at: hoursAgo(0.5),
+    });
+  }
+
+  write(LS_LIKES, likes);
+  write(LS_COMMENTS, comments);
+  localStorage.setItem(CATALOG_ENGAGEMENT_KEY, 'done');
+}
+
+function mapStoredPosts(posts, users, likes, comments) {
+  return enrichPostsWithTeamStats(posts).map((p) => toPost(p, users, likes, comments));
+}
+
+function ensureFeaturedPosts() {
+  ensureCatalogPosts();
 }
 
 function toPost(post, users, likes, comments) {
@@ -202,7 +447,7 @@ function toPost(post, users, likes, comments) {
   const postLikes = likes.filter((l) => l.post_id === post.id);
   const base = {
     ...post,
-    profiles: post.profiles || { nickname: user?.nickname || '익명' },
+    profiles: { nickname: user?.nickname || '익명' },
     like_count: postLikes.length,
     liked_by: postLikes.map((l) => l.user_id),
   };
@@ -210,6 +455,7 @@ function toPost(post, users, likes, comments) {
     const author = users.find((u) => u.id === c.user_id);
     return {
       ...c,
+      parent_id: c.parent_id || null,
       profiles: c.profiles || { nickname: author?.nickname || '익명' },
     };
   });
@@ -229,6 +475,10 @@ const localBackend = {
 
   init() {
     seedDemoData();
+    purgePostsByNicknames();
+    ensureCatalogPosts();
+    ensureCatalogEngagement();
+    ensurePostTeams();
     const session = read(LS_SESSION, null);
     if (!session?.userId) return null;
     const users = read(LS_USERS, []);
@@ -286,21 +536,30 @@ const localBackend = {
   },
 
   async uploadPost(userId, files, postFields) {
-    const { caption, player_name, team, season_year, kit_type, tags } = normalizePostFields(postFields);
-    const list = validateImageFiles(files);
+    const { caption, player_name, team, tags } = normalizePostFields(postFields);
+    const fileList = (Array.isArray(files) ? files : [files]).filter(Boolean);
 
-    const image_urls = await Promise.all(list.map((file) => fileToDataUrl(file)));
+    const ALLOWED = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+    if (!fileList.length) throw new Error('사진을 선택해 주세요.');
+
+    const imageUrls = [];
+    for (const file of fileList) {
+      if (!ALLOWED.includes(file.type)) throw new Error('JPG, PNG, WEBP, GIF만 업로드할 수 있습니다.');
+      if (file.size > 5 * 1024 * 1024) throw new Error('파일 크기는 5MB 이하여야 합니다.');
+      imageUrls.push(await fileToDataUrl(file));
+    }
+
+    const { image_url, image_urls } = buildPostImageFields(imageUrls);
     const posts = read(LS_POSTS, []);
+    const isFirstDiscoverer = willBeFirstDiscoverer(posts, team, player_name);
     const post = {
       id: uid(),
       user_id: userId,
-      image_url: image_urls[0],
+      image_url,
       image_urls,
       caption,
       player_name,
       team,
-      season_year,
-      kit_type,
       tags,
       created_at: new Date().toISOString(),
     };
@@ -310,19 +569,22 @@ const localBackend = {
     const users = read(LS_USERS, []);
     const likes = read(LS_LIKES, []);
     const comments = read(LS_COMMENTS, []);
-    return toPost(normalizePostRecord(post), users, likes, comments);
+    const enriched = mapStoredPosts([post], users, likes, comments)[0];
+    return { ...enriched, isFirstDiscoverer };
   },
 
   async fetchAllPosts() {
-    const posts = mergeCuratedPosts(read(LS_POSTS, []));
+    const posts = read(LS_POSTS, []).sort(
+      (a, b) => new Date(b.created_at) - new Date(a.created_at)
+    );
     const users = read(LS_USERS, []);
     const likes = normalizeLikes(read(LS_LIKES, []));
     const comments = read(LS_COMMENTS, []);
-    return posts.map((p) => toPost(normalizePostRecord(p), users, likes, comments));
+    return mapStoredPosts(posts, users, likes, comments);
   },
 
   async fetchRankings() {
-    const posts = mergeCuratedPosts(read(LS_POSTS, []));
+    const posts = read(LS_POSTS, []);
     const users = read(LS_USERS, []);
     const likes = normalizeLikes(read(LS_LIKES, []));
     const comments = read(LS_COMMENTS, []);
@@ -330,13 +592,14 @@ const localBackend = {
   },
 
   async fetchMyPosts(userId) {
-    const posts = read(LS_POSTS, [])
+    const allPosts = enrichPostsWithTeamStats(read(LS_POSTS, []));
+    const posts = allPosts
       .filter((p) => p.user_id === userId)
       .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
     const users = read(LS_USERS, []);
     const likes = read(LS_LIKES, []);
     const comments = read(LS_COMMENTS, []);
-    return posts.map((p) => toPost(normalizePostRecord(p), users, likes, comments));
+    return posts.map((p) => toPost(p, users, likes, comments));
   },
 
   async fetchLikedPosts(userId) {
@@ -345,20 +608,37 @@ const localBackend = {
       .map((l) => l.post_id);
     if (!likedIds.length) return [];
 
-    const posts = read(LS_POSTS, [])
+    const allPosts = enrichPostsWithTeamStats(read(LS_POSTS, []));
+    const posts = allPosts
       .filter((p) => likedIds.includes(p.id))
       .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
     const users = read(LS_USERS, []);
     const likes = read(LS_LIKES, []);
     const comments = read(LS_COMMENTS, []);
-    return posts.map((p) => toPost(normalizePostRecord(p), users, likes, comments));
+    return posts.map((p) => toPost(p, users, likes, comments));
   },
 
-  async addComment(postId, userId, body) {
+  async addComment(postId, userId, body, parentId = null) {
     const text = body.trim();
     if (!text) throw new Error('댓글을 입력하세요.');
     if (text.length > MAX_COMMENT_LEN) {
       throw new Error(`댓글은 ${MAX_COMMENT_LEN}자 이내입니다.`);
+    }
+
+    const posts = read(LS_POSTS, []);
+    const post = posts.find((p) => p.id === postId);
+    if (!post) throw new Error('게시물을 찾을 수 없습니다.');
+
+    const comments = read(LS_COMMENTS, []);
+
+    if (parentId) {
+      if (post.user_id !== userId) {
+        throw new Error('게시자만 대댓글을 달 수 있습니다.');
+      }
+      const parent = comments.find((c) => c.id === parentId && c.post_id === postId);
+      if (!parent || parent.parent_id) {
+        throw new Error('답글을 달 댓글을 찾을 수 없습니다.');
+      }
     }
 
     const users = read(LS_USERS, []);
@@ -367,10 +647,10 @@ const localBackend = {
       id: uid(),
       post_id: postId,
       user_id: userId,
+      parent_id: parentId || null,
       body: text,
       created_at: new Date().toISOString(),
     };
-    const comments = read(LS_COMMENTS, []);
     comments.push(comment);
     write(LS_COMMENTS, comments);
     return {
@@ -431,4 +711,8 @@ const localBackend = {
     });
     if (changed) write(LS_NOTIFICATIONS, updated);
   },
+
+  fetchInquiryPosts: () => Promise.resolve(fetchInquiryPosts()),
+  createInquiryPost: (userId, fields, notifyMeta) =>
+    Promise.resolve(createInquiryPost(userId, fields, notifyMeta)),
 };

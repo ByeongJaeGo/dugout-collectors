@@ -22,10 +22,9 @@
       <p id="header-tagline" class="header-tagline">전설의 유니폼, 여기서 다시 만난다</p>
 
       <div class="header__actions">
-        <button type="button" class="nav-btn" id="contact-btn">문의</button>
+        <button type="button" class="nav-btn" data-nav="inquiry">문의</button>
         <nav id="guest-nav" class="nav">
           <button type="button" class="nav-btn" id="guest-login-btn">로그인</button>
-          <button type="button" class="nav-btn nav-btn--accent" id="guest-signup-btn">회원가입</button>
         </nav>
 
         <nav id="auth-nav" class="nav" hidden>
@@ -52,6 +51,7 @@
         </nav>
       </div>
     </div>
+    <div id="today-reg-panel" class="today-reg-panel" aria-live="polite"></div>
   </header>
 
   <main class="main">
@@ -60,9 +60,15 @@
       <div class="home-hero" aria-label="서비스 소개">
         <div class="home-hero__inner">
           <p class="home-hero__text">
-            <span class="home-hero__line">세상에 있는 <em class="home-hero__highlight">유니폼 도감</em>,</span>
-            <span class="home-hero__line home-hero__line--cta">같이 채우실래요?</span>
+            <span class="home-hero__line">세상에 있는 <em class="home-hero__highlight">수많은 유니폼들</em>,</span>
+            <span class="home-hero__line home-hero__line--cta">같이 <em class="home-hero__highlight home-hero__highlight--inline">도감</em> 채우실래요?</span>
           </p>
+          <button type="button" class="home-hero__upload-btn" data-nav="upload">
+            <span class="home-hero__upload-btn-ring" aria-hidden="true"></span>
+            <span class="home-hero__upload-btn-shine" aria-hidden="true"></span>
+            <span class="home-hero__upload-btn-icon" aria-hidden="true">📸</span>
+            <span class="home-hero__upload-btn-label">유니폼 올리기</span>
+          </button>
         </div>
         <span class="home-hero__glow" aria-hidden="true"></span>
       </div>
@@ -74,17 +80,12 @@
         <p class="feed-subtitle">수집가들의 희귀 유니폼 · 최신순</p>
       </div>
       <div id="ranking-panel" class="ranking-panel" aria-live="polite"></div>
+      <div id="team-category-bar" class="team-category-bar"></div>
       <form id="search-form" class="search-bar" role="search">
-        <input type="search" id="search-input" name="q" placeholder="선수, 팀, 연도, 태그, 설명으로 검색…" autocomplete="off">
+        <input type="search" id="search-input" name="q" placeholder="선수, 태그, 팀, 설명으로 검색…" autocomplete="off">
         <button type="submit" class="search-bar__btn" aria-label="검색">🔍</button>
       </form>
-      <div id="guest-cta" class="guest-cta">
-        <div class="guest-cta__card">
-          <span class="guest-cta__badge">10초면 끝!</span>
-          <p class="guest-cta__title">회원가입하고<br>좋아요 · 업로드 해보세요</p>
-          <button type="button" id="feed-signup-btn" class="btn btn--primary guest-cta__btn">회원가입</button>
-        </div>
-      </div>
+      <div id="player-filter-bar" class="player-filter-bar" hidden></div>
       <div id="feed-list" class="feed-list"></div>
     </section>
 
@@ -100,35 +101,21 @@
           <label>사진</label>
           <div class="photo-upload">
             <input type="file" id="photo-input" name="photo" accept="image/jpeg,image/png,image/webp,image/gif" multiple required>
-            <p id="photo-placeholder" class="photo-placeholder">탭하여 사진 선택<br><small>JPG, PNG, WEBP, GIF · 최대 5MB · 최대 10장</small></p>
+            <p id="photo-placeholder" class="photo-placeholder">탭하여 사진 선택 (여러 장 가능)<br><small>JPG, PNG, WEBP, GIF · 각 5MB 이하</small></p>
             <div id="photo-preview-list" class="photo-preview-list" hidden></div>
           </div>
         </div>
         <div class="form-group">
-          <label for="player-name-input">선수 이름</label>
-          <input type="text" id="player-name-input" name="player_name" maxlength="40" placeholder="예: 이정후, 오타니, 류현진">
-          <p class="form-hint">유니폼에 적힌 선수 이름 (선택)</p>
-        </div>
-        <div class="form-row">
-          <div class="form-group">
-            <label for="team-input">팀</label>
-            <input type="text" id="team-input" name="team" maxlength="40" placeholder="예: LA 다저스, 한화">
-            <p class="form-hint">소속 팀 (선택)</p>
-          </div>
-          <div class="form-group">
-            <label for="season-year-input">연도</label>
-            <input type="number" id="season-year-input" name="season_year" min="1900" max="2100" placeholder="예: 2018">
-            <p class="form-hint">시즌 연도 (선택)</p>
-          </div>
+          <label for="team-input">팀</label>
+          <select id="team-input" name="team" required aria-label="팀 선택">
+            <option value="" disabled selected>팀을 선택하세요</option>
+          </select>
+          <p class="form-hint">KBO 10개 구단 · MLB · NPB</p>
         </div>
         <div class="form-group">
-          <label for="kit-type-input">홈/원정</label>
-          <select id="kit-type-input" name="kit_type">
-            <option value="">선택 안 함</option>
-            <option value="home">홈</option>
-            <option value="away">원정</option>
-          </select>
-          <p class="form-hint">유니폼 종류 (선택)</p>
+          <label for="player-name-input">선수 이름</label>
+          <input type="text" id="player-name-input" name="player_name" maxlength="40" placeholder="예: 이정후, 오타니, 류현진">
+          <p class="form-hint">같은 팀·선수 유니폼은 N벌로 표시 · 첫 등록 시 🔍 첫 발견자</p>
         </div>
         <div class="form-group">
           <label for="tags-input">태그</label>
@@ -137,7 +124,7 @@
         </div>
         <div class="form-group">
           <label for="caption-input">설명</label>
-          <textarea id="caption-input" name="caption" required maxlength="300" placeholder="에디션, 특징, 사인 여부 등 간단히 적어 주세요."></textarea>
+          <textarea id="caption-input" name="caption" required maxlength="300" placeholder="팀, 연도, 에디션 등 간단히 적어 주세요."></textarea>
         </div>
         <button type="submit" class="btn btn--primary">올리기</button>
       </form>
@@ -154,6 +141,31 @@
       <h1 class="view-title">좋아요한 유니폼</h1>
       <p class="feed-subtitle">내가 ♥ 누른 글 모음</p>
       <div id="my-likes-list" class="feed-list"></div>
+    </section>
+
+    <!-- 문의 게시판 -->
+    <section id="view-inquiry" hidden>
+      <div class="inquiry-header">
+        <h1 class="view-title">문의 게시판</h1>
+        <p class="feed-subtitle">궁금한 점을 남겨 주세요 · 운영팀이 확인합니다</p>
+      </div>
+      <p id="inquiry-guest-notice" class="inquiry-notice" hidden>
+        문의 작성은 로그인 후 가능합니다.
+        <button type="button" id="inquiry-go-login" class="guest-banner__link">로그인하기</button>
+      </p>
+      <form id="inquiry-form" class="form-card inquiry-form">
+        <div class="form-group">
+          <label for="inquiry-title-input">제목</label>
+          <input type="text" id="inquiry-title-input" name="title" required minlength="2" maxlength="80" placeholder="문의 제목">
+        </div>
+        <div class="form-group">
+          <label for="inquiry-body-input">내용</label>
+          <textarea id="inquiry-body-input" name="body" required minlength="10" maxlength="2000" rows="6" placeholder="문의 내용을 자세히 적어 주세요."></textarea>
+        </div>
+        <p class="form-hint inquiry-form__notice">등록 후 답변까지 <strong>1~2일</strong> 소요될 수 있습니다.</p>
+        <button type="submit" class="btn btn--primary">문의 등록</button>
+      </form>
+      <div id="inquiry-list" class="inquiry-list" aria-live="polite"></div>
     </section>
   </main>
 
@@ -216,36 +228,6 @@
     </div>
   </div>
 
-  <div id="contact-modal" class="auth-modal contact-modal" hidden aria-modal="true" role="dialog" aria-labelledby="contact-modal-title">
-    <div class="auth-modal__backdrop" id="contact-modal-backdrop"></div>
-    <div class="auth-modal__card contact-modal__card">
-      <button type="button" class="auth-modal__close" id="contact-modal-close" aria-label="닫기">×</button>
-      <h2 id="contact-modal-title" class="auth-modal__title">문의하기</h2>
-      <p class="auth-modal__subtitle">궁금한 점을 남겨 주시면 이메일로 답변드립니다.</p>
-      <form id="contact-form" class="auth-form">
-        <div class="form-group">
-          <label for="contact-name">이름</label>
-          <input type="text" id="contact-name" name="name" required minlength="2" maxlength="30" autocomplete="name" placeholder="홍길동">
-        </div>
-        <div class="form-group">
-          <label for="contact-email">답변 받을 이메일</label>
-          <input type="email" id="contact-email" name="email" required autocomplete="email" placeholder="you@example.com">
-        </div>
-        <div class="form-group">
-          <label for="contact-subject">제목</label>
-          <input type="text" id="contact-subject" name="subject" required minlength="2" maxlength="80" placeholder="문의 제목">
-        </div>
-        <div class="form-group">
-          <label for="contact-message">문의 내용</label>
-          <textarea id="contact-message" name="message" required minlength="10" maxlength="2000" rows="5" placeholder="문의 내용을 자세히 적어 주세요."></textarea>
-        </div>
-        <p class="form-hint contact-form__notice">접수 후 답변까지 <strong>1~2일</strong> 소요될 수 있습니다.</p>
-        <input type="text" name="_honey" id="contact-honey" class="contact-honey" tabindex="-1" autocomplete="off" aria-hidden="true">
-        <button type="submit" class="btn btn--primary">문의 보내기</button>
-      </form>
-    </div>
-  </div>
-
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -253,10 +235,11 @@
   <script src="js/email-utils.js"></script>
   <script src="js/contact.js"></script>
   <script src="js/comments.js"></script>
+  <script src="js/teams.js"></script>
+  <script src="js/team-registry.js"></script>
   <script src="js/ranking.js"></script>
   <script src="js/badges.js"></script>
   <script src="js/notifications.js"></script>
-  <script src="js/curated-posts.js"></script>
   <script src="js/posts.js"></script>
   <script src="js/local-store.js"></script>
   <script src="js/ui.js"></script>

@@ -1,10 +1,88 @@
 const LS_CONTACTS = 'dugout_contact_inquiries';
+const LS_INQUIRIES = 'dugout_inquiry_board';
+const LS_USERS_KEY = 'dugout_users';
 
 function isContactEmailConfigured() {
   if (typeof CONTACT_EMAIL !== 'string') return false;
   const email = CONTACT_EMAIL.trim();
   if (!email || email.includes('YOUR_CONTACT_EMAIL')) return false;
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+}
+
+function readInquiries() {
+  try {
+    return JSON.parse(localStorage.getItem(LS_INQUIRIES) || '[]');
+  } catch {
+    return [];
+  }
+}
+
+function writeInquiries(list) {
+  localStorage.setItem(LS_INQUIRIES, JSON.stringify(list));
+}
+
+function getInquiryUsers() {
+  try {
+    return JSON.parse(localStorage.getItem(LS_USERS_KEY) || '[]');
+  } catch {
+    return [];
+  }
+}
+
+function normalizeInquiryFields({ title, body }) {
+  const trimmedTitle = String(title || '').trim();
+  const trimmedBody = String(body || '').trim();
+
+  if (trimmedTitle.length < 2) throw new Error('제목은 2자 이상 입력해 주세요.');
+  if (trimmedBody.length < 10) throw new Error('내용은 10자 이상 입력해 주세요.');
+
+  return {
+    title: trimmedTitle.slice(0, 80),
+    body: trimmedBody.slice(0, 2000),
+  };
+}
+
+function enrichInquiryPost(post, users) {
+  const user = users.find((u) => u.id === post.user_id);
+  return {
+    ...post,
+    profiles: { nickname: user?.nickname || '익명' },
+  };
+}
+
+function fetchInquiryPosts() {
+  const users = getInquiryUsers();
+  return readInquiries()
+    .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+    .map((post) => enrichInquiryPost(post, users));
+}
+
+function createInquiryPost(userId, fields, notifyMeta = null) {
+  if (!userId) throw new Error('로그인 후 문의를 작성할 수 있습니다.');
+
+  const { title, body } = normalizeInquiryFields(fields);
+  const post = {
+    id: crypto.randomUUID(),
+    user_id: userId,
+    title,
+    body,
+    created_at: new Date().toISOString(),
+  };
+
+  const list = readInquiries();
+  list.unshift(post);
+  writeInquiries(list.slice(0, 200));
+
+  if (notifyMeta?.name && notifyMeta?.email) {
+    submitContactInquiry({
+      name: notifyMeta.name,
+      email: notifyMeta.email,
+      subject: title,
+      message: body,
+    }).catch(() => {});
+  }
+
+  return enrichInquiryPost(post, getInquiryUsers());
 }
 
 function saveLocalInquiry(payload) {
@@ -39,9 +117,7 @@ async function submitContactInquiry({ name, email, subject, message }) {
 
   if (!isContactEmailConfigured()) {
     saveLocalInquiry(payload);
-    throw new Error(
-      'js/config.js의 CONTACT_EMAIL에 수신 이메일을 설정해 주세요. (데모: 문의 내용은 브라우저에만 저장됨)'
-    );
+    return true;
   }
 
   const body = {
@@ -82,4 +158,4 @@ async function submitContactInquiry({ name, email, subject, message }) {
 }
 
 const CONTACT_SUCCESS_MESSAGE =
-  '문의가 접수되었습니다. 답변까지 1~2일 소요될 수 있습니다.';
+  '문의가 등록되었습니다. 답변까지 1~2일 소요될 수 있습니다.';

@@ -42,12 +42,16 @@ function createSupabaseBackend() {
     fetchMyPosts: (userId) => fetchMyPosts(supabaseClient, userId),
     fetchLikedPosts: (userId) => fetchLikedPosts(supabaseClient, userId),
     fetchRankings: () => fetchRankings(supabaseClient),
-    addComment: (postId, userId, body) => addComment(supabaseClient, postId, userId, body),
+    addComment: (postId, userId, body, parentId) =>
+      addComment(supabaseClient, postId, userId, body, parentId),
     toggleLike: (postId, userId, alreadyLiked) =>
       toggleLike(supabaseClient, postId, userId, alreadyLiked),
     createNotification: (payload) => createNotification(supabaseClient, payload),
     fetchNotifications: (userId) => fetchNotifications(supabaseClient, userId),
     markNotificationsRead: (userId) => markNotificationsRead(supabaseClient, userId),
+    fetchInquiryPosts: () => Promise.resolve(fetchInquiryPosts()),
+    createInquiryPost: (userId, fields, notifyMeta) =>
+      Promise.resolve(createInquiryPost(userId, fields, notifyMeta)),
   };
 }
 

@@ -1,4 +1,4 @@
-const views = ['feed', 'upload', 'my-posts', 'my-likes'];
+const views = ['feed', 'upload', 'my-posts', 'my-likes', 'inquiry'];
 
 function showView(name) {
   views.forEach((v) => {
@@ -14,7 +14,6 @@ function setAuthNav(isLoggedIn, label, badges) {
   const authNav = document.getElementById('auth-nav');
   const guestNav = document.getElementById('guest-nav');
   const labelEl = document.getElementById('nav-user-label');
-  const guestCta = document.getElementById('guest-cta');
 
   if (authNav) authNav.hidden = !isLoggedIn;
   if (guestNav) guestNav.hidden = isLoggedIn;
@@ -27,7 +26,6 @@ function setAuthNav(isLoggedIn, label, badges) {
       labelEl.textContent = '';
     }
   }
-  if (guestCta) guestCta.hidden = isLoggedIn;
   if (isLoggedIn) hideAuthModal();
 }
 
@@ -161,45 +159,292 @@ function scrollToPost(postId) {
   }
 }
 
+function filterPostsByTeam(posts, teamFilter) {
+  const id = normalizeTeamId(teamFilter);
+  if (!id) return posts;
+  return posts.filter((p) => normalizeTeamId(p.team) === id);
+}
+
+function filterPostsByPlayer(posts, playerFilterKey) {
+  if (!playerFilterKey) return posts;
+  return posts.filter(
+    (p) => playerTeamKey(p.team, p.player_name) === playerFilterKey
+  );
+}
+
+function getPlayerFilterMeta(playerFilterKey, posts) {
+  const sample = (posts || []).find(
+    (p) => playerTeamKey(p.team, p.player_name) === playerFilterKey
+  );
+  const teamId = sample?.team || playerFilterKey.split('::')[0] || '';
+  return {
+    playerName: sample?.player_name || '',
+    teamName: getTeamName(teamId),
+    teamId,
+  };
+}
+
+function renderPlayerFilterBar(playerFilterKey, posts) {
+  const bar = document.getElementById('player-filter-bar');
+  if (!bar) return;
+
+  if (!playerFilterKey) {
+    bar.hidden = true;
+    bar.innerHTML = '';
+    return;
+  }
+
+  const meta = getPlayerFilterMeta(playerFilterKey, posts);
+  if (!meta.playerName) {
+    bar.hidden = true;
+    bar.innerHTML = '';
+    return;
+  }
+
+  bar.hidden = false;
+  bar.innerHTML = `
+    <div class="player-filter-bar__inner">
+      <p class="player-filter-bar__label">
+        ⚾ <strong>${escapeHtml(meta.playerName)}</strong>
+        <span class="player-filter-bar__team">${escapeHtml(meta.teamName)}</span> 유니폼만 보는 중
+      </p>
+      <button type="button" class="player-filter-bar__clear" data-clear-player-filter>필터 해제</button>
+    </div>
+  `;
+}
+
+function buildFeedEmptyMessage(query, teamFilter, playerFilterKey, posts) {
+  const q = query.trim();
+  const playerMeta = playerFilterKey ? getPlayerFilterMeta(playerFilterKey, posts) : null;
+  const teamName = teamFilter ? getTeamName(teamFilter) || getTeamShortName(teamFilter) : '';
+
+  if (playerMeta?.playerName) {
+    const label = `${playerMeta.playerName} (${playerMeta.teamName})`;
+    if (q) return `"${escapeHtml(q)}" · ${escapeHtml(label)} 검색 결과가 없습니다.`;
+    return `${escapeHtml(label)} 유니폼이 아직 없습니다.`;
+  }
+
+  if (q && teamName) {
+    return `"${escapeHtml(q)}" · ${escapeHtml(teamName)} 결과가 없습니다.`;
+  }
+  if (q) return `"${escapeHtml(q)}" 검색 결과가 없습니다.`;
+  if (teamName) return `${escapeHtml(teamName)} 유니폼이 아직 없습니다. 첫 번째로 올려 보세요!`;
+  return '아직 올라온 유니폼이 없습니다. 첫 번째로 올려 보세요!';
+}
+
 function filterPostsByQuery(posts, query) {
   const q = query.trim().toLowerCase();
   if (!q) return posts;
   return posts.filter((p) => {
     const tagText = (p.tags || []).join(' ').toLowerCase();
-    const yearText = p.season_year ? String(p.season_year) : '';
-    const kitLabel = formatKitType(p.kit_type).toLowerCase();
     return (
       (p.caption || '').toLowerCase().includes(q) ||
       (p.player_name || '').toLowerCase().includes(q) ||
-      (p.team || '').toLowerCase().includes(q) ||
-      yearText.includes(q) ||
-      kitLabel.includes(q) ||
+      getTeamName(p.team).toLowerCase().includes(q) ||
       tagText.includes(q) ||
       (p.profiles?.nickname || '').toLowerCase().includes(q)
     );
   });
 }
 
-function formatKitType(kitType) {
-  if (kitType === 'home') return '홈';
-  if (kitType === 'away') return '원정';
-  return '';
+function renderPlayerLineHtml(post) {
+  const name = (post.player_name || '').trim();
+  if (!name) return '';
+
+  const teamName = getTeamName(post.team);
+  const count = post.uniform_count || 1;
+  const countHtml =
+    count >= 2
+      ? `<span class="post-card__uniform-count" title="같은 팀·선수 ${count}벌">${count}벌</span>`
+      : '';
+  const discoverHtml = post.is_first_discoverer
+    ? '<span class="badge badge--first_discoverer post-card__discover">🔍 첫 발견</span>'
+    : '';
+  const rareHtml = post.is_rare_item
+    ? '<span class="badge badge--rare post-card__rare">희귀매물</span>'
+    : '';
+  const teamHtml = teamName
+    ? `<span class="post-card__team">${escapeHtml(teamName)}</span>`
+    : '';
+  const playerKey = playerTeamKey(post.team, name);
+  const nameHtml = playerKey
+    ? `<button type="button" class="post-card__player-link" data-player-key="${escapeHtml(playerKey)}" data-team="${escapeHtml(post.team)}" aria-label="${escapeHtml(name)} 유니폼 모아보기">${escapeHtml(name)}</button>`
+    : escapeHtml(name);
+
+  return `<p class="post-card__player">⚾ ${nameHtml}${countHtml}${discoverHtml}${rareHtml}${teamHtml ? ` · ${teamHtml}` : ''}</p>`;
 }
 
-function renderPostUniformMetaHtml(post) {
-  const parts = [];
-  const team = (post.team || '').trim();
-  const year = post.season_year ? String(post.season_year) : '';
-  const kit = formatKitType(post.kit_type);
+function renderTodayRegPanel(posts) {
+  const panel = document.getElementById('today-reg-panel');
+  if (!panel) return;
 
-  if (team) parts.push(`<span class="post-card__meta-item post-card__meta-item--team">${escapeHtml(team)}</span>`);
-  if (year) parts.push(`<span class="post-card__meta-item post-card__meta-item--year">${escapeHtml(year)}</span>`);
-  if (kit) parts.push(`<span class="post-card__meta-item post-card__meta-item--kit">${escapeHtml(kit)}</span>`);
+  const { players, teams } = computeTodayRegRankings(posts);
 
-  if (!parts.length) return '';
-  return `<div class="post-card__meta">${parts.join('')}</div>`;
+  if (!players.length && !teams.length) {
+    panel.hidden = true;
+    panel.innerHTML = '';
+    return;
+  }
+
+  panel.hidden = false;
+
+  const playerHtml = players.length
+    ? `<ol class="today-reg-list">${players
+        .map(
+          (item, i) =>
+            `<li><span class="today-reg-rank">${i + 1}</span> ${escapeHtml(item.playerName)} <span class="today-reg-meta">(${escapeHtml(item.teamName)})</span> <strong>${item.count}벌</strong></li>`
+        )
+        .join('')}</ol>`
+    : '<p class="today-reg-empty">오늘 등록된 선수가 없습니다.</p>';
+
+  const teamHtml = teams.length
+    ? `<ol class="today-reg-list">${teams
+        .map(
+          (item, i) =>
+            `<li><span class="today-reg-rank">${i + 1}</span> ${escapeHtml(item.teamName)} <strong>${item.count}벌</strong></li>`
+        )
+        .join('')}</ol>`
+    : '<p class="today-reg-empty">오늘 등록된 팀이 없습니다.</p>';
+
+  panel.innerHTML = `
+    <div class="today-reg-panel__inner">
+      <div class="today-reg-block">
+        <h2 class="today-reg-block__title">📈 오늘의 선수 등록 TOP</h2>
+        ${playerHtml}
+      </div>
+      <div class="today-reg-block">
+        <h2 class="today-reg-block__title">🏟️ 오늘의 팀 등록 TOP</h2>
+        ${teamHtml}
+      </div>
+    </div>
+  `;
 }
 
+function initTeamSelect() {
+  const select = document.getElementById('team-input');
+  if (!select) return;
+  select.innerHTML =
+    '<option value="" disabled selected>팀을 선택하세요</option>' + renderTeamSelectOptions();
+}
+
+function renderPostImagesHtml(post) {
+  const images = getPostImages(post);
+  if (!images.length) {
+    return '<img class="post-card__image" src="/assets/demo-uniform.svg" alt="유니폼 사진" loading="lazy">';
+  }
+  if (images.length === 1) {
+    return `<img class="post-card__image" src="${escapeHtml(images[0])}" alt="유니폼 사진" loading="lazy">`;
+  }
+
+  const slides = images
+    .map(
+      (url, index) =>
+        `<img class="post-carousel__slide post-card__image" src="${escapeHtml(url)}" alt="유니폼 사진 ${index + 1}" loading="lazy">`
+    )
+    .join('');
+
+  const dots = images
+    .map(
+      (_, index) =>
+        `<button type="button" class="post-carousel__dot${index === 0 ? ' post-carousel__dot--active' : ''}" data-carousel-dot="${index}" aria-label="${index + 1}번째 사진"></button>`
+    )
+    .join('');
+
+  return `
+    <div class="post-carousel" data-carousel>
+      <div class="post-carousel__viewport">
+        <div class="post-carousel__track">${slides}</div>
+      </div>
+      <button type="button" class="post-carousel__btn post-carousel__btn--prev" aria-label="이전 사진">‹</button>
+      <button type="button" class="post-carousel__btn post-carousel__btn--next" aria-label="다음 사진">›</button>
+      <span class="post-carousel__counter">1 / ${images.length}</span>
+      <div class="post-carousel__dots">${dots}</div>
+    </div>
+  `;
+}
+
+function bindPostImages(card) {
+  card.querySelectorAll('.post-card__image:not(.post-carousel__slide)').forEach((img) => {
+    img.addEventListener('error', () => {
+      if (!img.dataset.fallback) {
+        img.dataset.fallback = '1';
+        img.src = '/assets/demo-uniform.svg';
+      }
+    });
+  });
+}
+
+function bindPostCarousel(card) {
+  const carousel = card.querySelector('[data-carousel]');
+  if (!carousel) {
+    bindPostImages(card);
+    return;
+  }
+
+  const track = carousel.querySelector('.post-carousel__track');
+  const slides = [...carousel.querySelectorAll('.post-carousel__slide')];
+  const prevBtn = carousel.querySelector('.post-carousel__btn--prev');
+  const nextBtn = carousel.querySelector('.post-carousel__btn--next');
+  const counter = carousel.querySelector('.post-carousel__counter');
+  const dots = [...carousel.querySelectorAll('[data-carousel-dot]')];
+  let index = 0;
+
+  slides.forEach((img) => {
+    img.addEventListener('error', () => {
+      if (!img.dataset.fallback) {
+        img.dataset.fallback = '1';
+        img.src = '/assets/demo-uniform.svg';
+      }
+    });
+  });
+
+  function goTo(nextIndex) {
+    index = (nextIndex + slides.length) % slides.length;
+    track.style.transform = `translateX(-${index * 100}%)`;
+    if (counter) counter.textContent = `${index + 1} / ${slides.length}`;
+    dots.forEach((dot, dotIndex) => {
+      dot.classList.toggle('post-carousel__dot--active', dotIndex === index);
+    });
+  }
+
+  prevBtn?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    goTo(index - 1);
+  });
+
+  nextBtn?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    goTo(index + 1);
+  });
+
+  dots.forEach((dot) => {
+    dot.addEventListener('click', (e) => {
+      e.stopPropagation();
+      goTo(Number(dot.dataset.carouselDot));
+    });
+  });
+
+  let touchStartX = 0;
+  carousel.addEventListener(
+    'touchstart',
+    (e) => {
+      touchStartX = e.changedTouches[0].clientX;
+    },
+    { passive: true }
+  );
+
+  carousel.addEventListener(
+    'touchend',
+    (e) => {
+      const diff = e.changedTouches[0].clientX - touchStartX;
+      if (Math.abs(diff) < 40) return;
+      goTo(index + (diff < 0 ? 1 : -1));
+    },
+    { passive: true }
+  );
+
+  goTo(0);
+}
 function renderPostTagsHtml(tags) {
   if (!tags?.length) return '';
   return `<div class="post-card__tags">${tags
@@ -257,44 +502,53 @@ function initAuthModal() {
 
   document.addEventListener('keydown', (e) => {
     if (e.key !== 'Escape') return;
-    const contactModal = document.getElementById('contact-modal');
-    if (contactModal && !contactModal.hidden) {
-      hideContactModal();
-      return;
-    }
     hideAuthModal();
   });
 }
 
-function showContactModal(prefill = {}) {
-  hideAuthModal();
-  const modal = document.getElementById('contact-modal');
-  if (!modal) return;
+function renderInquiryList(container, posts) {
+  if (!container) return;
 
-  const nameInput = document.getElementById('contact-name');
-  const emailInput = document.getElementById('contact-email');
-  if (nameInput && prefill.name) nameInput.value = prefill.name;
-  if (emailInput && prefill.email) emailInput.value = prefill.email;
+  if (!posts?.length) {
+    container.innerHTML =
+      '<p class="empty-state">아직 등록된 문의가 없습니다. 첫 문의를 남겨 보세요!</p>';
+    return;
+  }
 
-  modal.hidden = false;
-  document.body.classList.add('auth-modal-open');
-  requestAnimationFrame(() => modal.classList.add('auth-modal--visible'));
-  (nameInput?.value ? emailInput : nameInput)?.focus();
+  container.innerHTML = posts
+    .map((post) => {
+      const nickname = escapeHtml(post.profiles?.nickname || '익명');
+      const title = escapeHtml(post.title || '');
+      const body = escapeHtml(post.body || '').replace(/\n/g, '<br>');
+      const date = new Date(post.created_at).toLocaleDateString('ko-KR', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+      });
+      return `
+        <article class="inquiry-card">
+          <header class="inquiry-card__header">
+            <h2 class="inquiry-card__title">${title}</h2>
+            <time class="inquiry-card__date">${date}</time>
+          </header>
+          <p class="inquiry-card__author">${nickname}</p>
+          <div class="inquiry-card__body">${body}</div>
+        </article>
+      `;
+    })
+    .join('');
 }
 
-function hideContactModal() {
-  const modal = document.getElementById('contact-modal');
-  if (!modal) return;
-  modal.classList.remove('auth-modal--visible');
-  document.body.classList.remove('auth-modal-open');
-  setTimeout(() => {
-    modal.hidden = true;
-  }, 280);
-}
+function updateInquiryView(isLoggedIn) {
+  const notice = document.getElementById('inquiry-guest-notice');
+  const form = document.getElementById('inquiry-form');
+  const submitBtn = form?.querySelector('button[type="submit"]');
 
-function initContactModal() {
-  document.getElementById('contact-modal-close')?.addEventListener('click', hideContactModal);
-  document.getElementById('contact-modal-backdrop')?.addEventListener('click', hideContactModal);
+  if (notice) notice.hidden = isLoggedIn;
+  if (form) form.hidden = !isLoggedIn;
+  if (submitBtn) submitBtn.textContent = isLoggedIn ? '문의 등록' : '로그인하고 문의하기';
 }
 
 function getCurrentView() {
@@ -328,25 +582,78 @@ function setFormLoading(form, loading, loadingText) {
   }
 }
 
-function renderCommentsHtml(comments) {
+function renderCommentAuthorHtml(comment, postOwnerId) {
+  const name = escapeHtml(comment.profiles?.nickname || '익명');
+  const roleHtml =
+    comment.user_id === postOwnerId
+      ? '<span class="comment-item__role">게시자</span>'
+      : '';
+  return `${roleHtml}<span class="comment-item__author">${name}</span>`;
+}
+
+function renderCommentTimeHtml(createdAt) {
+  return new Date(createdAt).toLocaleDateString('ko-KR', {
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+}
+
+function renderSingleCommentHtml(comment, postOwnerId, currentUserId, postId, isReply = false) {
+  const body = escapeHtml(comment.body || '');
+  const time = renderCommentTimeHtml(comment.created_at);
+  const replyClass = isReply ? ' comment-item--reply' : '';
+  const canReply =
+    !isReply && currentUserId && currentUserId === postOwnerId;
+
+  const replyControls = canReply
+    ? `
+      <button type="button" class="comment-reply-btn" data-reply-to="${escapeHtml(comment.id)}">답글</button>
+      <form class="comment-reply-form" data-post="${escapeHtml(postId)}" data-parent="${escapeHtml(comment.id)}" hidden>
+        <input type="text" name="body" maxlength="200" placeholder="대댓글을 입력하세요…">
+        <button type="submit" class="comment-reply-form__btn">등록</button>
+      </form>
+    `
+    : '';
+
+  return `
+    <div class="comment-item${replyClass}" data-comment-id="${escapeHtml(comment.id)}">
+      <div class="comment-item__head">
+        ${renderCommentAuthorHtml(comment, postOwnerId)}
+        <time class="comment-item__time">${time}</time>
+      </div>
+      <p class="comment-item__body">${body}</p>
+      ${replyControls}
+    </div>
+  `;
+}
+
+function renderCommentsHtml(comments, postOwnerId, currentUserId, postId) {
   if (!comments?.length) {
     return '<p class="comment-empty">아직 댓글이 없습니다.</p>';
   }
-  return comments
-    .map((c) => {
-      const name = escapeHtml(c.profiles?.nickname || '익명');
-      const body = escapeHtml(c.body || '');
-      const time = new Date(c.created_at).toLocaleDateString('ko-KR', {
-        month: 'short',
-        day: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
-      });
+
+  const topLevel = comments.filter((c) => !c.parent_id);
+  const repliesByParent = comments.reduce((acc, comment) => {
+    if (!comment.parent_id) return acc;
+    if (!acc[comment.parent_id]) acc[comment.parent_id] = [];
+    acc[comment.parent_id].push(comment);
+    return acc;
+  }, {});
+
+  return topLevel
+    .map((comment) => {
+      const replies = (repliesByParent[comment.id] || [])
+        .map((reply) =>
+          renderSingleCommentHtml(reply, postOwnerId, currentUserId, postId, true)
+        )
+        .join('');
+
       return `
-        <div class="comment-item">
-          <span class="comment-item__author">${name}</span>
-          <span class="comment-item__body">${body}</span>
-          <time class="comment-item__time">${time}</time>
+        <div class="comment-thread">
+          ${renderSingleCommentHtml(comment, postOwnerId, currentUserId, postId, false)}
+          ${replies ? `<div class="comment-replies">${replies}</div>` : ''}
         </div>
       `;
     })
@@ -369,21 +676,19 @@ function renderPostCard(post, currentUserId, onLike, onComment, onRequireLogin, 
   });
   const commentCount = post.comment_count ?? post.comments?.length ?? 0;
   const playerName = (post.player_name || '').trim();
-  const playerHtml = playerName
-    ? `<p class="post-card__player">⚾ ${escapeHtml(playerName)}</p>`
-    : '';
-  const uniformMetaHtml = renderPostUniformMetaHtml(post);
-  const tagsHtml = renderPostTagsHtml(post.tags);
-  const images = getPostImages(post);
+  const playerHtml = renderPlayerLineHtml(post);
+  const tagsHtml = renderPostTagsHtml(post);
 
   card.innerHTML = `
     <div class="post-card__header">
-      <span class="post-card__author">${escapeHtml(nickname)}${authorBadges}</span>
+      <span class="post-card__author">
+        <span class="post-card__author-role">게시자</span>
+        ${escapeHtml(nickname)}${authorBadges}
+      </span>
       <time class="post-card__date">${date}</time>
     </div>
-    ${renderPostGalleryHtml(post.id, images)}
+    ${renderPostImagesHtml(post)}
     ${playerHtml}
-    ${uniformMetaHtml}
     <p class="post-card__caption">${escapeHtml(post.caption || '')}</p>
     ${tagsHtml}
     <div class="post-card__actions">
@@ -394,16 +699,17 @@ function renderPostCard(post, currentUserId, onLike, onComment, onRequireLogin, 
       <span class="comment-count">💬 ${commentCount}</span>
     </div>
     <div class="post-card__comments">
-      <div class="comment-list">${renderCommentsHtml(post.comments)}</div>
+      <div class="comment-list">${renderCommentsHtml(post.comments, post.user_id, currentUserId, post.id)}</div>
       <form class="comment-form" data-post="${post.id}">
-        <input type="text" name="body" maxlength="200" placeholder="${currentUserId ? '댓글을 입력하세요…' : '가입 후 댓글 작성'}" ${currentUserId ? '' : 'readonly'}>
+        <input type="text" name="body" maxlength="200" placeholder="댓글을 입력하세요…" ${currentUserId ? '' : 'readonly'}>
         <button type="submit" class="comment-form__btn">등록</button>
       </form>
     </div>
   `;
 
   const likeBtn = card.querySelector('[data-like]');
-  initPostGallery(card);
+  bindPostCarousel(card);
+
   likeBtn.dataset.liked = liked ? 'true' : 'false';
   likeBtn.addEventListener('click', () => {
     if (!currentUserId) {
@@ -422,7 +728,34 @@ function renderPostCard(post, currentUserId, onLike, onComment, onRequireLogin, 
       return;
     }
     const input = commentForm.querySelector('input[name="body"]');
-    onComment(post.id, input.value, commentForm);
+    onComment(post.id, input.value, commentForm, null);
+  });
+
+  card.querySelectorAll('.comment-reply-btn').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const thread = btn.closest('.comment-thread, .comment-item');
+      thread?.querySelectorAll('.comment-reply-form').forEach((form) => {
+        form.hidden = true;
+      });
+      const form = btn.nextElementSibling;
+      if (form?.classList.contains('comment-reply-form')) {
+        form.hidden = false;
+        form.querySelector('input')?.focus();
+      }
+    });
+  });
+
+  card.querySelectorAll('.comment-reply-form').forEach((form) => {
+    form.addEventListener('submit', (e) => {
+      e.preventDefault();
+      if (!currentUserId) {
+        onRequireLogin();
+        return;
+      }
+      const input = form.querySelector('input[name="body"]');
+      const parentId = form.dataset.parent;
+      onComment(post.id, input.value, form, parentId);
+    });
   });
 
   const commentInput = commentForm.querySelector('input');
@@ -535,130 +868,24 @@ function escapeHtml(str) {
   return div.innerHTML;
 }
 
-function renderPostGalleryHtml(postId, images) {
-  const urls = (images || []).filter(Boolean);
-  if (!urls.length) {
-    return '<img class="post-card__image" src="/assets/demo-uniform.svg" alt="유니폼 사진">';
-  }
-  if (urls.length === 1) {
-    return `<img class="post-card__image" src="${escapeHtml(urls[0])}" alt="유니폼 사진" loading="lazy">`;
-  }
-
-  const slides = urls
-    .map(
-      (url, i) =>
-        `<img class="post-gallery__image${i === 0 ? ' is-active' : ''}" src="${escapeHtml(url)}" alt="유니폼 사진 ${i + 1}" loading="${i === 0 ? 'eager' : 'lazy'}">`
-    )
-    .join('');
-
-  const dots = urls
-    .map(
-      (_, i) =>
-        `<button type="button" class="post-gallery__dot${i === 0 ? ' is-active' : ''}" data-gallery-dot="${i}" aria-label="${i + 1}번째 사진"></button>`
-    )
-    .join('');
-
-  return `
-    <div class="post-gallery" data-gallery-id="${escapeHtml(postId)}">
-      <div class="post-gallery__viewport">${slides}</div>
-      <button type="button" class="post-gallery__nav post-gallery__nav--prev" data-gallery-prev aria-label="이전 사진">‹</button>
-      <button type="button" class="post-gallery__nav post-gallery__nav--next" data-gallery-next aria-label="다음 사진">›</button>
-      <span class="post-gallery__count">1 / ${urls.length}</span>
-      <div class="post-gallery__dots">${dots}</div>
-    </div>
-  `;
-}
-
-function initPostGallery(card) {
-  const singleImg = card.querySelector('.post-card__image');
-  if (singleImg) {
-    singleImg.addEventListener('error', () => {
-      if (!singleImg.dataset.fallback) {
-        singleImg.dataset.fallback = '1';
-        singleImg.src = '/assets/demo-uniform.svg';
-      }
-    });
-    return;
-  }
-
-  const gallery = card.querySelector('.post-gallery');
-  if (!gallery) return;
-
-  const images = [...gallery.querySelectorAll('.post-gallery__image')];
-  const dots = [...gallery.querySelectorAll('[data-gallery-dot]')];
-  const countEl = gallery.querySelector('.post-gallery__count');
-  const prevBtn = gallery.querySelector('[data-gallery-prev]');
-  const nextBtn = gallery.querySelector('[data-gallery-next]');
-  let index = 0;
-
-  const show = (nextIndex) => {
-    index = (nextIndex + images.length) % images.length;
-    images.forEach((img, i) => img.classList.toggle('is-active', i === index));
-    dots.forEach((dot, i) => dot.classList.toggle('is-active', i === index));
-    if (countEl) countEl.textContent = `${index + 1} / ${images.length}`;
-  };
-
-  images.forEach((img) => {
-    img.addEventListener('error', () => {
-      if (!img.dataset.fallback) {
-        img.dataset.fallback = '1';
-        img.src = '/assets/demo-uniform.svg';
-      }
-    });
-  });
-
-  prevBtn?.addEventListener('click', (e) => {
-    e.stopPropagation();
-    show(index - 1);
-  });
-  nextBtn?.addEventListener('click', (e) => {
-    e.stopPropagation();
-    show(index + 1);
-  });
-  dots.forEach((dot) => {
-    dot.addEventListener('click', (e) => {
-      e.stopPropagation();
-      show(Number(dot.dataset.galleryDot));
-    });
-  });
-}
-
 function previewImages(files, listEl, placeholderEl) {
-  const selected = files ? Array.from(files) : [];
+  if (!listEl || !placeholderEl) return;
   listEl.innerHTML = '';
 
-  if (!selected.length) {
+  if (!files?.length) {
     listEl.hidden = true;
     placeholderEl.hidden = false;
     return;
   }
 
-  selected.forEach((file, i) => {
-    const item = document.createElement('div');
-    item.className = 'photo-preview-item';
+  [...files].forEach((file) => {
     const img = document.createElement('img');
-    img.className = 'photo-preview-item__img';
-    img.alt = `미리보기 ${i + 1}`;
+    img.className = 'photo-preview';
+    img.alt = '미리보기';
     img.src = URL.createObjectURL(file);
-    const label = document.createElement('span');
-    label.className = 'photo-preview-item__label';
-    label.textContent = `${i + 1}`;
-    item.append(img, label);
-    listEl.appendChild(item);
+    listEl.appendChild(img);
   });
 
   listEl.hidden = false;
-  placeholderEl.hidden = true;
-}
-
-function previewImage(file, imgEl, placeholderEl) {
-  if (!imgEl) return;
-  if (!file) {
-    imgEl.hidden = true;
-    placeholderEl.hidden = false;
-    return;
-  }
-  imgEl.src = URL.createObjectURL(file);
-  imgEl.hidden = false;
   placeholderEl.hidden = true;
 }

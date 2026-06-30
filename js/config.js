@@ -26,6 +26,14 @@ const ADSENSE_VERIFICATION = 'ca-pub-5264814436773700';
 const SITE_URL = 'https://workspace-chi-one-16.vercel.app';
 
 /**
+ * 네이버 서치어드바이저 HTML meta 소유 확인 코드
+ * 1) https://searchadvisor.naver.com/ → 웹마스터 도구 → 사이트 등록
+ * 2) npm run naver:verify -- 발급코드
+ * 3) 배포 후 서치어드바이저에서 [소유 확인] → 사이트맵·URL 수집 요청
+ */
+const NAVER_SITE_VERIFICATION = '';
+
+/**
  * Microsoft Clarity — 행동 분석 (히트맵·세션 녹화)
  * 1) https://clarity.microsoft.com 가입
  * 2) 새 프로젝트 → 사이트 URL 입력

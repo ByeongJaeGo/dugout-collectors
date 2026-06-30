@@ -2306,35 +2306,15 @@ body.auth-modal-open {
   color: var(--color-muted);
 }
 
-.site-guides {
-  margin-bottom: 20px;
-  padding: 16px 18px;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius);
-  background: var(--color-surface);
-}
-
-.site-guides__title {
-  margin: 0 0 6px;
-  font-size: 1rem;
-  font-weight: 700;
-}
-
-.site-guides__desc {
-  margin: 0 0 12px;
-  font-size: 0.82rem;
+.site-footer__seo {
+  margin: 8px 0 0;
+  font-size: 0.7rem;
   color: var(--color-muted);
+  opacity: 0.85;
 }
 
-.site-guides__list {
-  margin: 0;
-  padding-left: 18px;
-  font-size: 0.875rem;
-  line-height: 1.7;
-}
-
-.site-guides__list a {
-  color: var(--color-primary);
+.site-footer__seo a {
+  color: inherit;
 }
 
 .header--static .header__inner {

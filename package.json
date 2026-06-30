@@ -3,6 +3,8 @@
   "private": true,
   "scripts": {
     "start": "npx serve . -l 3456",
-    "dev": "npm start"
+    "dev": "npm start",
+    "naver:setup": "node scripts/naver-setup.mjs",
+    "naver:verify": "node scripts/naver-setup.mjs"
   }
 }

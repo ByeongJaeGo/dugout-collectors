@@ -100,46 +100,13 @@ function seedDemoData() {
 
   if (localStorage.getItem(LS_SEEDED)) return;
 
-  const now = new Date();
-  const hoursAgo = (h) => new Date(now.getTime() - h * 60 * 60 * 1000).toISOString();
-
-  const post2 = uid();
-  const post3 = uid();
-
   write(LS_USERS, [
-    { id: BOT_ID, email: 'demo@naver.com', nickname: 'DugoutBot' },
-    { id: BOT2_ID, email: 'collector1@naver.com', nickname: '유니폼수집가' },
-    { id: BOT3_ID, email: 'collector2@gmail.com', nickname: '빈티지러버' },
     { id: BOT4_ID, email: 'collector3@daum.net', nickname: 'KBO매니아' },
   ]);
 
-  write(LS_POSTS, [
-    {
-      id: post2,
-      user_id: BOT2_ID,
-      image_url: DEMO_IMAGE,
-      caption: '1995 KBO 올스타 레플리카 · 한정판',
-      player_name: '이종범',
-      team: 'lg',
-      tags: ['KBO', '올스타', '레플리카'],
-      created_at: hoursAgo(24),
-    },
-    {
-      id: post3,
-      user_id: BOT3_ID,
-      image_url: DEMO_IMAGE,
-      caption: 'MLB 클래식 로드 유니폼 · 희귀 컬러',
-      player_name: '오타니',
-      team: 'mlb',
-      tags: ['MLB', '레플리카', '에인절스'],
-      created_at: hoursAgo(6),
-    },
-  ]);
+  write(LS_POSTS, []);
 
-  write(LS_LIKES, [
-    { post_id: post2, user_id: BOT4_ID, created_at: hoursAgo(1) },
-    { post_id: post3, user_id: BOT4_ID, created_at: hoursAgo(0.5) },
-  ]);
+  write(LS_LIKES, []);
 
   write(LS_COMMENTS, []);
 
@@ -151,10 +118,10 @@ function seedDemoData() {
 
 const FEATURED_POSTS_KEY = 'dugout_featured_yamamoto';
 const CATALOG_POSTS_KEY = 'dugout_catalog_v5';
-const CATALOG_ENGAGEMENT_KEY = 'dugout_catalog_engagement_v1';
+const CATALOG_ENGAGEMENT_KEY = 'dugout_catalog_engagement_v2';
 const POST_TEAMS_KEY = 'dugout_post_teams_v1';
-const PURGED_AUTHORS_KEY = 'dugout_purged_authors_v1';
-const PURGED_NICKNAMES = ['DugoutBot', '고푸리아'];
+const PURGED_AUTHORS_KEY = 'dugout_purged_authors_v2';
+const PURGED_NICKNAMES = ['DugoutBot', '고푸리아', '유니폼수집가', '빈티지러버'];
 
 function purgePostsByNicknames() {
   if (localStorage.getItem(PURGED_AUTHORS_KEY)) return;
@@ -163,30 +130,45 @@ function purgePostsByNicknames() {
   const purgeUserIds = new Set(
     users.filter((u) => PURGED_NICKNAMES.includes(u.nickname)).map((u) => u.id)
   );
+  if (!purgeUserIds.size) {
+    localStorage.setItem(PURGED_AUTHORS_KEY, 'done');
+    return;
+  }
 
   const posts = read(LS_POSTS, []);
   const removedPostIds = new Set(
     posts.filter((p) => purgeUserIds.has(p.user_id)).map((p) => p.id)
   );
 
-  if (removedPostIds.size) {
-    write(
-      LS_POSTS,
-      posts.filter((p) => !purgeUserIds.has(p.user_id))
-    );
-    write(
-      LS_LIKES,
-      read(LS_LIKES, []).filter((l) => !removedPostIds.has(l.post_id))
-    );
-    write(
-      LS_COMMENTS,
-      read(LS_COMMENTS, []).filter((c) => !removedPostIds.has(c.post_id))
-    );
-    write(
-      LS_NOTIFICATIONS,
-      read(LS_NOTIFICATIONS, []).filter((n) => !removedPostIds.has(n.post_id))
-    );
-  }
+  write(
+    LS_POSTS,
+    posts.filter((p) => !purgeUserIds.has(p.user_id))
+  );
+  write(
+    LS_LIKES,
+    read(LS_LIKES, []).filter(
+      (l) => !removedPostIds.has(l.post_id) && !purgeUserIds.has(l.user_id)
+    )
+  );
+  write(
+    LS_COMMENTS,
+    read(LS_COMMENTS, []).filter(
+      (c) => !removedPostIds.has(c.post_id) && !purgeUserIds.has(c.user_id)
+    )
+  );
+  write(
+    LS_NOTIFICATIONS,
+    read(LS_NOTIFICATIONS, []).filter(
+      (n) =>
+        !removedPostIds.has(n.post_id) &&
+        !purgeUserIds.has(n.actor_id) &&
+        !purgeUserIds.has(n.user_id)
+    )
+  );
+  write(
+    LS_USERS,
+    users.filter((u) => !purgeUserIds.has(u.id))
+  );
 
   localStorage.setItem(PURGED_AUTHORS_KEY, 'done');
 }
@@ -384,11 +366,11 @@ function ensureCatalogEngagement() {
   const hoursAgo = (h) => new Date(now.getTime() - h * 60 * 60 * 1000).toISOString();
 
   const likesByPlayer = {
-    '제러드 호잉': [BOT2_ID, BOT3_ID],
-    '야마모토 요시노부': [BOT2_ID, BOT3_ID, BOT4_ID],
+    '제러드 호잉': [BOT5_ID, BOT6_ID],
+    '야마모토 요시노부': [BOT5_ID, BOT6_ID, BOT4_ID],
   };
 
-  const likerPool = [BOT_ID, BOT2_ID, BOT3_ID, BOT4_ID, BOT5_ID, BOT6_ID, BOT7_ID, BOT8_ID];
+  const likerPool = [BOT4_ID, BOT5_ID, BOT6_ID, BOT7_ID, BOT8_ID];
   let poolIdx = 0;
 
   function pickLikers(post, count) {
@@ -423,7 +405,7 @@ function ensureCatalogEngagement() {
     comments.push({
       id: uid(),
       post_id: yamamoto.id,
-      user_id: BOT3_ID,
+      user_id: BOT7_ID,
       body: '이거 어케사요?',
       created_at: hoursAgo(0.5),
     });
